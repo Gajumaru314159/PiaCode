@@ -8,6 +8,94 @@ import { ChordQuality, PitchClass } from "@/types/music";
 import { SavePanel } from "./SavePanel";
 import { ConfirmDialog } from "./ConfirmDialog";
 
+const GRID_COLS = 11;
+const GRID_UNIT = "10vw";
+const GRID_LIGHT_BORDER = "rgba(120, 170, 220, 0.35)";
+const GRID_CELL_STYLE: React.CSSProperties = {
+  width: GRID_UNIT,
+  height: GRID_UNIT,
+  minWidth: GRID_UNIT,
+  minHeight: GRID_UNIT,
+  boxSizing: "border-box",
+};
+const GRID_ROW_STYLE: React.CSSProperties = {
+  position: "relative",
+  display: "flex",
+  width: `calc(${GRID_UNIT} * ${GRID_COLS})`,
+  height: GRID_UNIT,
+  marginLeft: `calc(${GRID_UNIT} * -0.5)`,
+};
+const GRID_OVERLAY_BASE_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: 0,
+  height: GRID_UNIT,
+  minHeight: 0,
+};
+
+type GridOverlay = {
+  key: string;
+  start: number; // 1-based
+  span?: number;
+  content: React.ReactNode;
+  className: string;
+  style?: React.CSSProperties;
+  asButton?: boolean;
+  ariaLabel?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+};
+
+/**
+ * @brief 11セルを明示生成して、その上に要素を重ねる行コンポーネント
+ */
+function GridRow({ overlays = [] }: { overlays?: GridOverlay[] }) {
+  return (
+    <div style={GRID_ROW_STYLE}>
+      {Array.from({ length: GRID_COLS }, (_, idx) => (
+        <div
+          key={`cell-${idx}`}
+          className="border"
+          style={{ ...GRID_CELL_STYLE, borderColor: GRID_LIGHT_BORDER }}
+          aria-hidden
+        />
+      ))}
+      {overlays.map((overlay) => {
+        const span = overlay.span ?? 1;
+        const overlayStyle: React.CSSProperties = {
+          ...GRID_OVERLAY_BASE_STYLE,
+          left: `calc(${GRID_UNIT} * ${overlay.start - 1})`,
+          width: `calc(${GRID_UNIT} * ${span})`,
+          ...overlay.style,
+        };
+        if (overlay.asButton) {
+          return (
+            <button
+              key={overlay.key}
+              type="button"
+              aria-label={overlay.ariaLabel}
+              onClick={overlay.onClick}
+              disabled={overlay.disabled}
+              className={`absolute min-w-0 min-h-0 ${overlay.className}`}
+              style={overlayStyle}
+            >
+              {overlay.content}
+            </button>
+          );
+        }
+        return (
+          <div
+            key={overlay.key}
+            className={`absolute min-w-0 min-h-0 ${overlay.className}`}
+            style={overlayStyle}
+          >
+            {overlay.content}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * @brief Editタブ - コード進行の入力・編集画面
  */
@@ -98,119 +186,150 @@ export function EditTab() {
       {/* 調号表示（VexFlow） */}
       <KeySignatureDisplay keyRoot={keyRoot} />
 
-      {/* マトリックス入力 */}
-      <div className="shrink-0 px-1 mt-2">
-        {/* ルート行（ヘッダー） */}
-        <div className="grid grid-cols-9 gap-px mb-px">
-          <button
-            aria-label="前のキーへ"
-            onClick={() => shiftKey(-1)}
-            className="flex items-center justify-center border border-[var(--border-color)] bg-white text-lg font-bold"
-          >
-            ◀
-          </button>
-          {diatonicRoots.map((root) => (
-            <button
-              key={root}
-              className="flex items-center justify-center border border-[var(--border-color)] bg-white text-xs font-bold py-1"
-              style={{ minHeight: "32px" }}
-              disabled
-            >
-              {root}
-            </button>
-          ))}
-          <button
-            aria-label="次のキーへ"
-            onClick={() => shiftKey(1)}
-            className="flex items-center justify-center border border-[var(--border-color)] bg-white text-lg font-bold"
-          >
-            ▶
-          </button>
-        </div>
+      {/* 11列グリッド上のマトリックス入力 */}
+      <div className="shrink-0 mt-2 overflow-x-hidden">
+        {/* 上段ルート行（◀ + 7ルート + ▶） */}
+        <GridRow
+          overlays={[
+            {
+              key: "prev-key",
+              start: 2,
+              content: "◀",
+              asButton: true,
+              ariaLabel: "前のキーへ",
+              onClick: () => shiftKey(-1),
+              className: "flex items-center justify-center border border-black text-lg font-bold",
+            },
+            ...diatonicRoots.map((root, idx) => ({
+              key: `head-root-${root}`,
+              start: 3 + idx,
+              content: root,
+              className: "flex items-center justify-center border border-black bg-white text-sm font-bold",
+            })),
+            {
+              key: "next-key",
+              start: 10,
+              content: "▶",
+              asButton: true,
+              ariaLabel: "次のキーへ",
+              onClick: () => shiftKey(1),
+              className: "flex items-center justify-center border border-black text-lg font-bold",
+            },
+          ]}
+        />
 
-        {/* 品質×ルートのマトリックス */}
+        {/* 品質×ルートのマトリックス（中央7x10のみ黒ボーダー） */}
         {MATRIX_QUALITIES.map((quality) => (
-          <div key={quality} className="grid grid-cols-9 gap-px mb-px">
-            <div className="flex items-center justify-center text-xs font-bold" style={{ color: "var(--text-secondary)" }}>
-              {quality}
-            </div>
-            {diatonicRoots.map((root) => (
-              <button
-                key={`${root}-${quality}`}
-                aria-label={`${root}${quality}`}
-                onClick={() => inputChord(root, quality)}
-                className="border border-[var(--border-color)] bg-white hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                style={{ minHeight: "30px", minWidth: "30px" }}
-              />
-            ))}
-            <div className="flex items-center justify-center text-xs font-bold" style={{ color: "var(--text-secondary)" }}>
-              {quality}
-            </div>
-          </div>
+          <GridRow
+            key={quality}
+            overlays={[
+              {
+                key: `left-quality-${quality}`,
+                start: 2,
+                content: quality,
+                className: "flex items-center justify-center text-sm font-bold",
+                style: { color: "var(--text-secondary)" },
+              },
+              ...diatonicRoots.map((root, idx) => ({
+                key: `matrix-${quality}-${root}`,
+                start: 3 + idx,
+                content: null,
+                asButton: true,
+                ariaLabel: `${root}${quality}`,
+                onClick: () => inputChord(root, quality),
+                className: "border border-black transition-opacity hover:opacity-70 active:opacity-60",
+              })),
+              {
+                key: `right-quality-${quality}`,
+                start: 10,
+                content: quality,
+                className: "flex items-center justify-center text-sm font-bold",
+                style: { color: "var(--text-secondary)" },
+              },
+            ]}
+          />
         ))}
 
-        {/* 下段ルート行（休符 + ルート + ピアノアイコン） */}
-        <div className="grid grid-cols-9 gap-px mt-px">
-          <button
-            aria-label="休符入力"
-            onClick={inputRest}
-            className="flex items-center justify-center border border-[var(--border-color)] bg-white text-lg"
-          >
-            𝄽
-          </button>
-          {diatonicRoots.map((root) => (
-            <button
-              key={`bottom-${root}`}
-              className="flex items-center justify-center border border-[var(--border-color)] bg-white text-xs font-bold py-1"
-              style={{ minHeight: "32px" }}
-              disabled
-            >
-              {root}
-            </button>
-          ))}
-          <div className="flex items-center justify-center text-lg" style={{ opacity: 0.3 }}>
-            🎹
-          </div>
-        </div>
-      </div>
+        {/* 下段ルート行（休符 + 7ルート + 装飾） */}
+        <GridRow
+          overlays={[
+            {
+              key: "rest-input",
+              start: 2,
+              content: "𝄽",
+              asButton: true,
+              ariaLabel: "休符入力",
+              onClick: inputRest,
+              className: "flex items-center justify-center border border-black text-lg",
+            },
+            ...diatonicRoots.map((root, idx) => ({
+              key: `bottom-root-${root}`,
+              start: 3 + idx,
+              content: root,
+              className: "flex items-center justify-center border border-black bg-white text-sm font-bold",
+            })),
+            {
+              key: "trash-icon",
+              start: 10,
+              content: "🗑",
+              className: "flex items-center justify-center border border-black bg-white text-lg",
+              style: { color: "#4d3d67" },
+            },
+          ]}
+        />
 
-      {/* ボタン行 */}
-      <div className="flex items-center justify-between px-2 py-2 shrink-0">
-        <button
-          aria-label="拍子切替"
-          onClick={toggleBeatsPerBar}
-          className="px-3 py-1 border border-[var(--border-color)] bg-white text-sm font-bold"
-        >
-          {progression.beatsPerBar}/4
-        </button>
-        <button
-          aria-label="保存"
-          onClick={() => dispatch({ type: "SET_SHOW_SAVE_PANEL", show: true })}
-          className="px-3 py-1 border border-[var(--border-color)] bg-white text-sm font-bold"
-        >
-          {t("edit.save", lang)}
-        </button>
-        <button
-          aria-label="クリア"
-          onClick={handleClear}
-          className="px-3 py-1 border border-[var(--border-color)] bg-white text-sm font-bold"
-        >
-          {t("edit.clear", lang)}
-        </button>
-        <button
-          aria-label="シャープ方向に移調"
-          onClick={() => handleTranspose(1)}
-          className="px-3 py-1 border border-[var(--border-color)] bg-white text-sm font-bold"
-        >
-          ♯
-        </button>
-        <button
-          aria-label="フラット方向に移調"
-          onClick={() => handleTranspose(-1)}
-          className="px-3 py-1 border border-[var(--border-color)] bg-white text-sm font-bold"
-        >
-          ♭
-        </button>
+        <GridRow />
+
+        {/* 操作ボタン行（グリッド上に配置） */}
+        <GridRow
+          overlays={[
+            {
+              key: "beats-toggle",
+              start: 2,
+              content: `${progression.beatsPerBar}/4`,
+              asButton: true,
+              ariaLabel: "拍子切替",
+              onClick: toggleBeatsPerBar,
+              className: "flex items-center justify-center text-sm font-bold whitespace-nowrap leading-none",
+            },
+            {
+              key: "save",
+              start: 4,
+              content: t("edit.save", lang),
+              asButton: true,
+              ariaLabel: "保存",
+              onClick: () => dispatch({ type: "SET_SHOW_SAVE_PANEL", show: true }),
+              className: "flex items-center justify-center text-sm font-bold whitespace-nowrap leading-none",
+            },
+            {
+              key: "clear",
+              start: 6,
+              content: t("edit.clear", lang),
+              asButton: true,
+              ariaLabel: "クリア",
+              onClick: handleClear,
+              className: "flex items-center justify-center text-sm font-bold whitespace-nowrap leading-none",
+            },
+            {
+              key: "transpose-sharp",
+              start: 8,
+              content: "♯",
+              asButton: true,
+              ariaLabel: "シャープ方向に移調",
+              onClick: () => handleTranspose(1),
+              className: "flex items-center justify-center text-sm font-bold whitespace-nowrap leading-none",
+            },
+            {
+              key: "transpose-flat",
+              start: 10,
+              content: "♭",
+              asButton: true,
+              ariaLabel: "フラット方向に移調",
+              onClick: () => handleTranspose(-1),
+              className: "flex items-center justify-center text-sm font-bold whitespace-nowrap leading-none",
+            },
+          ]}
+        />
       </div>
 
       {/* コード進行グリッド */}
@@ -407,52 +526,59 @@ function ChordGrid() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-1 pb-4">
-      {rows.map((rowStart) => (
-        <div key={rowStart} className="grid gap-px mb-px" style={{ gridTemplateColumns: `40px repeat(${visibleCellsPerRow}, 1fr)` }}>
-          {/* 小節番号（タップで該当段を再生） */}
-          <button
-            onClick={() => playRow(rowStart)}
-            className="flex items-center justify-center text-xs font-bold cursor-pointer hover:bg-gray-100"
-            style={{ color: "#CC4444", minHeight: "36px" }}
-            aria-label={`小節${Math.floor(rowStart / beatsPerBar) + 1}から再生`}
-          >
-            {Math.floor(rowStart / beatsPerBar) + 1}
-          </button>
-          {/* セル */}
-          {Array.from({ length: visibleCellsPerRow }, (_, col) => {
-            const idx = rowStart + col;
-            if (idx >= cells.length) return <div key={col} />;
-            const cell = cells[idx];
-            const isCursor = idx === cursor;
-            const showSimile = isSamileDisplay(rowStart, col);
-
-            let display = "";
-            if (cell.isRest) {
-              display = "";
-            } else if (showSimile) {
-              display = "𝄍";
-            } else {
-              display = chordDisplayName(cell);
-            }
-
-            return (
-              <button
-                key={col}
-                onClick={() => dispatch({ type: "SET_CURSOR", cursor: idx })}
-                className="flex items-center justify-center border border-[var(--border-color)] text-xs font-bold transition-colors"
-                style={{
-                  backgroundColor: isCursor ? "var(--cursor-bg)" : "white",
-                  minHeight: "36px",
-                }}
-                aria-label={`セル ${idx}: ${display || "空"}`}
-              >
-                {display}
-              </button>
-            );
-          })}
-        </div>
-      ))}
+    <div className="flex-1 overflow-y-auto overflow-x-hidden pb-4">
+      <div>
+        {rows.map((rowStart) => (
+          <GridRow
+            key={rowStart}
+            overlays={[
+              {
+                key: `bar-${rowStart}`,
+                start: 2,
+                content: Math.floor(rowStart / beatsPerBar) + 1,
+                asButton: true,
+                ariaLabel: `小節${Math.floor(rowStart / beatsPerBar) + 1}から再生`,
+                onClick: () => playRow(rowStart),
+                className: "flex items-center justify-center border border-black text-sm font-bold hover:opacity-70",
+                style: { color: "#CC4444" },
+              },
+              ...Array.from({ length: visibleCellsPerRow }, (_, col) => {
+                const idx = rowStart + col;
+                const start = 3 + col;
+                if (idx >= cells.length) {
+                  return {
+                    key: `empty-${rowStart}-${col}`,
+                    start,
+                    content: null,
+                    className: "border border-black",
+                  };
+                }
+                const cell = cells[idx];
+                const isCursor = idx === cursor;
+                const showSimile = isSamileDisplay(rowStart, col);
+                let display = "";
+                if (cell.isRest) {
+                  display = "";
+                } else if (showSimile) {
+                  display = "𝄍";
+                } else {
+                  display = chordDisplayName(cell);
+                }
+                return {
+                  key: `chord-${rowStart}-${col}`,
+                  start,
+                  content: display,
+                  asButton: true,
+                  ariaLabel: `セル ${idx}: ${display || "空"}`,
+                  onClick: () => dispatch({ type: "SET_CURSOR", cursor: idx }),
+                  className: "flex items-center justify-center border border-black text-[0.66rem] font-bold leading-none tracking-tight whitespace-nowrap px-0.5 transition-colors",
+                  style: { backgroundColor: isCursor ? "var(--cursor-bg)" : "transparent" },
+                };
+              }),
+            ]}
+          />
+        ))}
+      </div>
     </div>
   );
 }
