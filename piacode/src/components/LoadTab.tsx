@@ -108,8 +108,8 @@ export function LoadTab() {
       {deleteTarget && (
         <ConfirmDialog
           message={t("load.deleteConfirm", lang, { name: deleteTarget.name })}
-          okLabel={t("common.ok", lang)}
-          cancelLabel={t("common.cancel", lang)}
+          okLabel={t("common.yes", lang)}
+          cancelLabel={t("common.no", lang)}
           onOk={confirmDelete}
           onCancel={() => setDeleteTarget(null)}
         />

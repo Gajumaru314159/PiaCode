@@ -36,6 +36,8 @@ const translations: Record<string, Record<string, string>> = {
     "common.off": "OFF",
     "common.cancel": "キャンセル",
     "common.ok": "OK",
+    "common.no": "いいえ",
+    "common.yes": "はい",
   },
   en: {
     "tab.edit": "Edit",
@@ -71,6 +73,8 @@ const translations: Record<string, Record<string, string>> = {
     "common.off": "OFF",
     "common.cancel": "Cancel",
     "common.ok": "OK",
+    "common.no": "No",
+    "common.yes": "Yes",
   },
   zh: {
     "tab.edit": "Edit",
@@ -106,6 +110,8 @@ const translations: Record<string, Record<string, string>> = {
     "common.off": "OFF",
     "common.cancel": "取消",
     "common.ok": "确定",
+    "common.no": "否",
+    "common.yes": "是",
   },
 };
 

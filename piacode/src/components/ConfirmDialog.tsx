@@ -13,7 +13,7 @@ interface ConfirmDialogProps {
 /**
  * @brief 独自実装の確認ダイアログ
  */
-export function ConfirmDialog({ message, okLabel = "OK", cancelLabel, onOk, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ message, okLabel = "はい", cancelLabel, onOk, onCancel }: ConfirmDialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Escキーでキャンセル
@@ -38,22 +38,22 @@ export function ConfirmDialog({ message, okLabel = "OK", cancelLabel, onOk, onCa
       >
         <p className="text-sm text-center mb-6 whitespace-pre-wrap">{message}</p>
         <div className="flex justify-center gap-4">
+          <button
+            onClick={onOk}
+            className="w-24 px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
+            aria-label={okLabel}
+          >
+            {okLabel}
+          </button>
           {cancelLabel && (
             <button
               onClick={onCancel}
-              className="px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
+              className="w-24 px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
               aria-label={cancelLabel}
             >
               {cancelLabel}
             </button>
           )}
-          <button
-            onClick={onOk}
-            className="px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
-            aria-label={okLabel}
-          >
-            {okLabel}
-          </button>
         </div>
       </div>
     </div>
