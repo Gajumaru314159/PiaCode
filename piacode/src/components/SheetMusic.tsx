@@ -129,13 +129,6 @@ export function SheetMusic({
             context.restore();
           }
 
-          if (absoluteBarIdx === 0) {
-            context.save();
-            context.setFont("Arial", 9);
-            context.fillText(`♩=${tempo}`, x + 5, y - 8);
-            context.restore();
-          }
-
           // 音符を描画（オプションの左右パターンに追従）
           const leftPattern = getPattern(leftPatternId);
           const rightPattern = getPattern(rightPatternId);
