@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { Progression } from "@/types/music";
 import { chordDisplayName, midiToVexKey } from "@/lib/music";
-import { getPattern } from "@/lib/audio";
+import { getPattern, PatternDef } from "@/lib/audio";
 
 interface SheetMusicProps {
   progression: Progression;
@@ -133,15 +133,10 @@ export function SheetMusic({
           }
 
           // 音符を描画（オプションの左右パターンに追従）
-          const barChord = cells[firstBeatIdx];
           const leftPattern = getPattern(leftPatternId);
           const rightPattern = getPattern(rightPatternId);
-          const leftEvents = barChord && !barChord.isRest
-            ? leftPattern.generate(barChord, beatsPerBar, firstBeatIdx)
-            : [];
-          const rightEvents = barChord && !barChord.isRest
-            ? rightPattern.generate(barChord, beatsPerBar, firstBeatIdx)
-            : [];
+          const leftEvents = collectBeatwisePatternEvents(cells, firstBeatIdx, beatsPerBar, leftPattern);
+          const rightEvents = collectBeatwisePatternEvents(cells, firstBeatIdx, beatsPerBar, rightPattern);
 
           const trebleNotes = buildPatternNotes(StaveNote, rightEvents, firstBeatIdx, beatsPerBar, "treble", 0);
           const bassNotes = buildPatternNotes(StaveNote, leftEvents, firstBeatIdx, beatsPerBar, "bass", -12);
@@ -240,4 +235,27 @@ function buildPatternNotes(
   }
 
   return notes;
+}
+
+/**
+ * @brief 小節内の各拍セルに対してパターンイベントを生成する
+ */
+function collectBeatwisePatternEvents(
+  cells: Progression["cells"],
+  barStartBeat: number,
+  beatsPerBar: number,
+  pattern: PatternDef
+) {
+  const events: Array<{ atBeat: number; midiNotes: number[] }> = [];
+  for (let beat = 0; beat < beatsPerBar; beat++) {
+    const absoluteBeat = barStartBeat + beat;
+    const cell = cells[absoluteBeat];
+    if (!cell || cell.isRest || !cell.root) continue;
+    // 1拍単位で生成して、小節内コード変更をそのまま反映する
+    const beatEvents = pattern.generate(cell, 1, absoluteBeat);
+    for (const event of beatEvents) {
+      events.push({ atBeat: event.atBeat, midiNotes: event.midiNotes });
+    }
+  }
+  return events;
 }

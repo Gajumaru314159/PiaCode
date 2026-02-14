@@ -82,6 +82,34 @@ export function resolveLoopLength(totalCells: number, beatsPerBar: 3 | 4): numbe
 }
 
 /**
+ * @brief 末尾の全休符小節を切り捨てた再生ループ長を算出する
+ * @param cells 全セル
+ * @param beatsPerBar 拍子
+ */
+export function resolveLoopLengthFromCells(cells: ChordToken[], beatsPerBar: 3 | 4): number {
+  const alignedLength = Math.floor(cells.length / beatsPerBar) * beatsPerBar;
+  if (alignedLength <= 0) return 0;
+
+  let lastBarStart = alignedLength - beatsPerBar;
+  while (lastBarStart >= 0) {
+    let isRestOnlyBar = true;
+    for (let i = 0; i < beatsPerBar; i++) {
+      const cell = cells[lastBarStart + i];
+      if (cell && !cell.isRest) {
+        isRestOnlyBar = false;
+        break;
+      }
+    }
+    if (!isRestOnlyBar) {
+      return lastBarStart + beatsPerBar;
+    }
+    lastBarStart -= beatsPerBar;
+  }
+
+  return 0;
+}
+
+/**
  * @brief 進行全体を半音単位で移調する
  * @param progression 進行データ
  * @param semitoneDelta 半音の移動量（+1 or -1）

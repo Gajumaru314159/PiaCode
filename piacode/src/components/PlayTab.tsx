@@ -101,11 +101,11 @@ export function PlayTab() {
     hand: "L" | "R",
     patternId: string
   ) => {
-    const beatInBar = beat % progression.beatsPerBar;
-    const barStartBeat = beat - beatInBar;
-    const barCell = progression.cells[barStartBeat] ?? createRestToken();
+    const beatCell = progression.cells[beat] ?? createRestToken();
+    if (beatCell.isRest || !beatCell.root) return;
     const pattern = getPattern(patternId);
-    const events = pattern.generate(barCell, progression.beatsPerBar, barStartBeat);
+    // 1拍=1コードセルとしてイベント生成することで、小節内コード変更に追従する
+    const events = pattern.generate(beatCell, 1, beat);
     const octaveShift = hand === "L" ? -12 : 0;
 
     for (const event of events) {
