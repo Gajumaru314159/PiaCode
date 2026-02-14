@@ -111,7 +111,7 @@ export function SheetMusic({
           if (isCurrentBar) {
             context.save();
             context.setFillStyle("rgba(120, 120, 120, 0.5)");
-            context.fillRect(x, y, barWidth, 140);
+            context.fillRect(x, y, barWidth, 180);
             context.restore();
           }
 
