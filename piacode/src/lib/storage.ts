@@ -42,18 +42,49 @@ function safeGet<T>(key: string): T | null {
 
 // --- 自動保存 ---
 
+export interface AutosaveData {
+  progression: Progression;
+  matrixKey: number;
+}
+
+function normalizeMatrixKey(key: unknown): number {
+  const num = Number(key);
+  if (!Number.isFinite(num)) return 0;
+  return ((Math.floor(num) % 12) + 12) % 12;
+}
+
 /**
  * @brief 自動保存データを保存する
  */
-export function saveAutosave(progression: Progression): boolean {
-  return safeSet(KEYS.autosave, progression);
+export function saveAutosave(progression: Progression, matrixKey: number): boolean {
+  const data: AutosaveData = {
+    progression,
+    matrixKey: normalizeMatrixKey(matrixKey),
+  };
+  return safeSet(KEYS.autosave, data);
 }
 
 /**
  * @brief 自動保存データを読み込む
  */
-export function loadAutosave(): Progression | null {
-  return safeGet<Progression>(KEYS.autosave);
+export function loadAutosave(): AutosaveData | null {
+  const raw = safeGet<unknown>(KEYS.autosave);
+  if (!raw || typeof raw !== "object") return null;
+  if ("progression" in raw) {
+    const withMeta = raw as Partial<AutosaveData>;
+    if (!withMeta.progression) return null;
+    return {
+      progression: withMeta.progression,
+      matrixKey: normalizeMatrixKey(withMeta.matrixKey),
+    };
+  }
+  // 旧形式（Progressionのみ保存）との互換
+  const legacy = raw as Progression;
+  if (!Array.isArray(legacy.cells)) return null;
+  return {
+    progression: legacy,
+    matrixKey: 0,
+  };
 }
 
 // --- ユーザープリセット ---
@@ -62,7 +93,20 @@ export function loadAutosave(): Progression | null {
  * @brief ユーザープリセット一覧を取得する
  */
 export function loadUserPresets(): SavedProgression[] {
-  return safeGet<SavedProgression[]>(KEYS.userPresets) || [];
+  const raw = safeGet<Partial<SavedProgression>[]>(KEYS.userPresets) || [];
+  return raw
+    .filter((p): p is Partial<SavedProgression> & Pick<SavedProgression, "id" | "name" | "createdAt" | "updatedAt" | "progression"> => {
+      return Boolean(p?.id && p?.name && p?.createdAt && p?.updatedAt && p?.progression);
+    })
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      progression: p.progression,
+      matrixKey: normalizeMatrixKey(p.matrixKey),
+      isSystem: p.isSystem,
+    }));
 }
 
 /**

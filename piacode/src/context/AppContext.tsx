@@ -71,7 +71,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_TAB": {
       // Editタブから離れるときに自動保存
       if (state.currentTab === "edit" && action.tab !== "edit") {
-        saveAutosave(state.progression);
+        saveAutosave(state.progression, state.currentKey);
       }
       const leavingPlay = state.currentTab === "play" && action.tab !== "play";
       return {
@@ -192,11 +192,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         const auto = loadAutosave();
         if (auto) {
-          dispatch({ type: "SET_PROGRESSION", progression: auto });
+          dispatch({ type: "SET_PROGRESSION", progression: auto.progression });
+          dispatch({ type: "SET_KEY", key: auto.matrixKey });
         }
       }
       if (found) {
         dispatch({ type: "SET_PROGRESSION", progression: { ...found.progression } });
+        dispatch({ type: "SET_KEY", key: found.matrixKey });
       }
     }
 
@@ -216,12 +218,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 自動保存（5秒ごと）
   useEffect(() => {
     autosaveTimerRef.current = setInterval(() => {
-      saveAutosave(state.progression);
+      saveAutosave(state.progression, state.currentKey);
     }, 5000);
     return () => {
       if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
     };
-  }, [state.progression]);
+  }, [state.progression, state.currentKey]);
 
   // オプション変更時に即時保存
   useEffect(() => {
@@ -233,6 +235,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
    */
   const loadPreset = useCallback((preset: SavedProgression) => {
     dispatch({ type: "SET_PROGRESSION", progression: { ...preset.progression, cursor: 0 } });
+    dispatch({ type: "SET_KEY", key: preset.matrixKey });
     dispatch({ type: "SET_PLAYBACK", playback: { currentBeat: 0 } });
     const info: LastOpenedInfo = {
       id: preset.id,
@@ -258,6 +261,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createdAt: existing?.createdAt || now,
       updatedAt: now,
       progression: { ...state.progression },
+      matrixKey: state.currentKey,
     };
     saveUserPreset(preset);
     const presets = loadUserPresets();
@@ -267,7 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_LAST_OPENED", info });
     saveLastOpened(info);
     return true;
-  }, [state.progression, state.userPresets]);
+  }, [state.progression, state.currentKey, state.userPresets]);
 
   /**
    * @brief プリセットを削除する

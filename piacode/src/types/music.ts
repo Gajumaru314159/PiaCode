@@ -47,6 +47,7 @@ export interface SavedProgression {
   createdAt: string;
   updatedAt: string;
   progression: Progression;
+  matrixKey: number;
   isSystem?: boolean;
 }
 
