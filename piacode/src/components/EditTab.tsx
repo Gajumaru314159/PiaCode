@@ -29,6 +29,7 @@ const GRID_OVERLAY_BASE_STYLE: React.CSSProperties = {
   position: "absolute",
   top: 0,
   height: GRID_UNIT,
+  minWidth: 0,
   minHeight: 0,
 };
 
@@ -204,7 +205,7 @@ export function EditTab() {
               key: `head-root-${root}`,
               start: 3 + idx,
               content: root,
-              className: "flex items-center justify-center border border-black bg-white text-sm font-bold",
+              className: "flex items-center justify-center border border-black text-sm font-bold",
             })),
             {
               key: "next-key",
@@ -266,13 +267,13 @@ export function EditTab() {
               key: `bottom-root-${root}`,
               start: 3 + idx,
               content: root,
-              className: "flex items-center justify-center border border-black bg-white text-sm font-bold",
+              className: "flex items-center justify-center border border-black text-sm font-bold",
             })),
             {
               key: "trash-icon",
               start: 10,
               content: "🗑",
-              className: "flex items-center justify-center border border-black bg-white text-lg",
+              className: "flex items-center justify-center border border-black text-lg",
               style: { color: "#4d3d67" },
             },
           ]}
