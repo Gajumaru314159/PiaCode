@@ -329,6 +329,7 @@ export function EditTab() {
             },
           ]}
         />
+
       </div>
 
       {/* コード進行グリッド */}
@@ -338,8 +339,8 @@ export function EditTab() {
       {showClearConfirm && (
         <ConfirmDialog
           message={t("edit.clearConfirm", lang)}
-          okLabel={t("common.ok", lang)}
-          cancelLabel={t("common.cancel", lang)}
+          okLabel={t("common.yes", lang)}
+          cancelLabel={t("common.no", lang)}
           onOk={confirmClear}
           onCancel={() => setShowClearConfirm(false)}
         />
@@ -577,6 +578,11 @@ function ChordGrid() {
             ]}
           />
         ))}
+        {/* 自動調整したい */}
+        <GridRow />
+        <GridRow />
+        <GridRow />
+        <GridRow />
       </div>
     </div>
   );
