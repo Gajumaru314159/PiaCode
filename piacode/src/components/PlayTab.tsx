@@ -60,12 +60,18 @@ export function PlayTab() {
     const gain = ctx.createGain();
     osc.type = "triangle";
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(velocity * 0.3, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+    const peak = Math.max(0.0001, velocity * 0.3);
+    const attack = Math.min(0.02, duration * 0.2);
+    const release = Math.min(0.08, duration * 0.25);
+    const releaseStart = Math.max(time + attack, time + duration - release);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(peak, time + attack);
+    gain.gain.setValueAtTime(peak, releaseStart);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(time);
-    osc.stop(time + duration);
+    osc.stop(time + duration + 0.01);
   }, []);
 
   /**
@@ -109,7 +115,7 @@ export function PlayTab() {
           ctx,
           midiToFreq(midi + octaveShift),
           time,
-          Math.max(0.04, event.durationBeat * beatDuration),
+          Math.max(0.08, event.durationBeat * beatDuration),
           event.velocity
         );
       }

@@ -361,14 +361,20 @@ function ChordGrid() {
         for (const midi of notes) {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
+          const duration = beatDuration;
+          const attack = Math.min(0.02, duration * 0.2);
+          const release = Math.min(0.08, duration * 0.25);
+          const releaseStart = Math.max(time + attack, time + duration - release);
           osc.type = "triangle";
           osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
-          gain.gain.setValueAtTime(0.2, time);
-          gain.gain.exponentialRampToValueAtTime(0.001, time + beatDuration * 0.9);
+          gain.gain.setValueAtTime(0.0001, time);
+          gain.gain.linearRampToValueAtTime(0.2, time + attack);
+          gain.gain.setValueAtTime(0.2, releaseStart);
+          gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.start(time);
-          osc.stop(time + beatDuration * 0.9);
+          osc.stop(time + duration + 0.01);
         }
       }
       beatIdx++;

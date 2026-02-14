@@ -48,7 +48,7 @@ const arpeggioPattern: PatternDef = {
         atBeat: startBeat + i,
         midiNotes: [notes[noteIdx]],
         velocity: 0.7,
-        durationBeat: 0.9,
+        durationBeat: 1,
       });
     }
     return events;
@@ -71,7 +71,7 @@ const blockPattern: PatternDef = {
         atBeat: startBeat + i,
         midiNotes: notes,
         velocity: i === 0 ? 0.8 : 0.6,
-        durationBeat: 0.5,
+        durationBeat: 1,
       });
     }
     return events;
