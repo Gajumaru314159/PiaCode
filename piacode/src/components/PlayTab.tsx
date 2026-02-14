@@ -262,6 +262,8 @@ export function PlayTab() {
           barsPerRow={options.barsPerRow}
           rowCount={options.rowCount}
           tempo={playback.tempo}
+          leftPatternId={options.leftPatternId}
+          rightPatternId={options.rightPatternId}
         />
       </div>
 

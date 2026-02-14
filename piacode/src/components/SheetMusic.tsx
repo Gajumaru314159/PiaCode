@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef } from "react";
 import { Progression } from "@/types/music";
-import { chordDisplayName, chordToMidiNotes, midiToVexKey } from "@/lib/music";
+import { chordDisplayName, midiToVexKey } from "@/lib/music";
+import { getPattern } from "@/lib/audio";
 
 interface SheetMusicProps {
   progression: Progression;
@@ -11,12 +12,23 @@ interface SheetMusicProps {
   barsPerRow: 2 | 4;
   rowCount: number;
   tempo: number;
+  leftPatternId: string;
+  rightPatternId: string;
 }
 
 /**
  * @brief VexFlowを使った楽譜表示コンポーネント
  */
-export function SheetMusic({ progression, currentBar, startBar, barsPerRow, rowCount, tempo }: SheetMusicProps) {
+export function SheetMusic({
+  progression,
+  currentBar,
+  startBar,
+  barsPerRow,
+  rowCount,
+  tempo,
+  leftPatternId,
+  rightPatternId,
+}: SheetMusicProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -117,43 +129,19 @@ export function SheetMusic({ progression, currentBar, startBar, barsPerRow, rowC
             context.restore();
           }
 
-          // 音符を描画
-          const trebleNotes: InstanceType<typeof StaveNote>[] = [];
-          const bassNotes: InstanceType<typeof StaveNote>[] = [];
+          // 音符を描画（オプションの左右パターンに追従）
+          const barChord = cells[firstBeatIdx];
+          const leftPattern = getPattern(leftPatternId);
+          const rightPattern = getPattern(rightPatternId);
+          const leftEvents = barChord && !barChord.isRest
+            ? leftPattern.generate(barChord, beatsPerBar, firstBeatIdx)
+            : [];
+          const rightEvents = barChord && !barChord.isRest
+            ? rightPattern.generate(barChord, beatsPerBar, firstBeatIdx)
+            : [];
 
-          for (let beat = 0; beat < beatsPerBar; beat++) {
-            const cellIdx = firstBeatIdx + beat;
-            const cell = cells[cellIdx];
-
-            if (!cell || cell.isRest || !cell.root) {
-              // 休符
-              trebleNotes.push(new StaveNote({ keys: ["b/4"], duration: `${beatsPerBar === 3 ? "4" : "4"}r` }));
-              bassNotes.push(new StaveNote({ keys: ["d/3"], duration: `${beatsPerBar === 3 ? "4" : "4"}r`, clef: "bass" }));
-            } else {
-              // コードの構成音
-              const midiNotes = chordToMidiNotes(cell, 4);
-              const trebleKeys = midiNotes
-                .filter((n) => n >= 60)
-                .map((n) => midiToVexKey(n));
-              const bassKeys = midiNotes
-                .filter((n) => n < 60)
-                .map((n) => midiToVexKey(n));
-
-              if (trebleKeys.length > 0) {
-                trebleNotes.push(new StaveNote({ keys: trebleKeys, duration: "4" }));
-              } else {
-                trebleNotes.push(new StaveNote({ keys: midiNotes.map((n) => midiToVexKey(n)), duration: "4" }));
-              }
-
-              if (bassKeys.length > 0) {
-                bassNotes.push(new StaveNote({ keys: bassKeys, duration: "4", clef: "bass" }));
-              } else {
-                // ルート音を1オクターブ下で鳴らす
-                const rootMidi = midiNotes[0] - 12;
-                bassNotes.push(new StaveNote({ keys: [midiToVexKey(rootMidi)], duration: "4", clef: "bass" }));
-              }
-            }
-          }
+          const trebleNotes = buildPatternNotes(StaveNote, rightEvents, firstBeatIdx, beatsPerBar, "treble", 0);
+          const bassNotes = buildPatternNotes(StaveNote, leftEvents, firstBeatIdx, beatsPerBar, "bass", -12);
 
           try {
             const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
@@ -192,7 +180,40 @@ export function SheetMusic({ progression, currentBar, startBar, barsPerRow, rowC
     };
 
     void renderSheet();
-  }, [progression, currentBar, startBar, barsPerRow, rowCount, tempo]);
+  }, [progression, currentBar, startBar, barsPerRow, rowCount, tempo, leftPatternId, rightPatternId]);
 
   return <div ref={containerRef} className="w-full overflow-hidden" />;
+}
+
+/**
+ * @brief パターンイベントを楽譜用の拍単位ノートへ変換する
+ */
+function buildPatternNotes(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  StaveNoteClass: any,
+  events: Array<{ atBeat: number; midiNotes: number[] }>,
+  barStartBeat: number,
+  beatsPerBar: number,
+  clef: "treble" | "bass",
+  midiShift: number
+) {
+  const restKey = clef === "bass" ? "d/3" : "b/4";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const notes: any[] = [];
+  const eventMap = new Map<number, number[]>();
+  for (const event of events) {
+    eventMap.set(event.atBeat, event.midiNotes);
+  }
+
+  for (let beat = 0; beat < beatsPerBar; beat++) {
+    const beatEvents = eventMap.get(barStartBeat + beat);
+    if (!beatEvents || beatEvents.length === 0) {
+      notes.push(new StaveNoteClass({ keys: [restKey], duration: "4r", clef }));
+      continue;
+    }
+    const keys = beatEvents.map((midi) => midiToVexKey(midi + midiShift));
+    notes.push(new StaveNoteClass({ keys, duration: "4", clef }));
+  }
+
+  return notes;
 }

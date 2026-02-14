@@ -191,20 +191,8 @@ export function OptionTab() {
           </div>
         </div>
 
-        {/* 左手パターン */}
-        <div className="mb-2">
-          <span className="text-xs">{t("option.leftHand", lang)}</span>
-          <button
-            onClick={() => { setPatternHand("L"); setShowPatternPanel(true); }}
-            className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
-            aria-label="左手パターン選択"
-          >
-            <PatternPreview patternId={options.leftPatternId} hand="L" compact />
-          </button>
-        </div>
-
         {/* 右手パターン */}
-        <div>
+        <div className="mb-2">
           <span className="text-xs">{t("option.rightHand", lang)}</span>
           <button
             onClick={() => { setPatternHand("R"); setShowPatternPanel(true); }}
@@ -212,6 +200,18 @@ export function OptionTab() {
             aria-label="右手パターン選択"
           >
             <PatternPreview patternId={options.rightPatternId} hand="R" compact />
+          </button>
+        </div>
+
+        {/* 左手パターン */}
+        <div>
+          <span className="text-xs">{t("option.leftHand", lang)}</span>
+          <button
+            onClick={() => { setPatternHand("L"); setShowPatternPanel(true); }}
+            className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
+            aria-label="左手パターン選択"
+          >
+            <PatternPreview patternId={options.leftPatternId} hand="L" compact />
           </button>
         </div>
       </Section>
@@ -299,7 +299,17 @@ interface PreviewEvent {
 /**
  * @brief 演奏パターンの楽譜プレビュー
  */
-function PatternPreview({ patternId, hand, compact = false }: { patternId: string; hand: "L" | "R"; compact?: boolean }) {
+function PatternPreview({
+  patternId,
+  hand,
+  compact = false,
+  showBothClefs = false,
+}: {
+  patternId: string;
+  hand: "L" | "R";
+  compact?: boolean;
+  showBothClefs?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -319,9 +329,9 @@ function PatternPreview({ patternId, hand, compact = false }: { patternId: strin
 
         const width = container.clientWidth || 280;
         const logicalWidth = compact ? Math.max(width * 1.7, 340) : Math.max(width * 1.9, 600);
-        const height = compact ? 120 : 190;
-        const rowTop = compact ? 8 : 16;
-        const bassOffsetY = compact ? 56 : 72;
+        const height = showBothClefs ? (compact ? 128 : 196) : (compact ? 96 : 132);
+        const rowTop = showBothClefs ? (compact ? 10 : 18) : (compact ? 16 : 22);
+        const bassOffsetY = compact ? 56 : 74;
         const beatsPerBar = 4;
         const bars = 2;
         const barWidth = Math.floor((logicalWidth - 18) / bars);
@@ -333,49 +343,63 @@ function PatternPreview({ patternId, hand, compact = false }: { patternId: strin
         context.setFont("Arial", 10);
 
         const activeEvents = buildPreviewEvents(patternId, previewChord, beatsPerBar, bars);
-        const fixedEvents = buildPreviewEvents("block", previewChord, beatsPerBar, bars);
-        const trebleEvents = hand === "R" ? activeEvents : fixedEvents;
-        const bassEvents = hand === "L" ? activeEvents : fixedEvents;
-
         for (let bar = 0; bar < bars; bar++) {
           const x = 8 + bar * barWidth;
           const y = rowTop;
           const barStartBeat = bar * beatsPerBar;
 
-          const trebleStave = new Stave(x, y, barWidth);
-          if (bar === 0) {
-            trebleStave.addClef("treble");
-            trebleStave.addTimeSignature("4/4");
+          if (showBothClefs) {
+            const trebleStave = new Stave(x, y, barWidth);
+            if (bar === 0) {
+              trebleStave.addClef("treble");
+              trebleStave.addTimeSignature("4/4");
+            }
+            trebleStave.setContext(context).draw();
+
+            const bassStave = new Stave(x, y + bassOffsetY, barWidth);
+            if (bar === 0) {
+              bassStave.addClef("bass");
+              bassStave.addTimeSignature("4/4");
+            }
+            bassStave.setContext(context).draw();
+
+            if (bar === 0) {
+              const connector = new StaveConnector(trebleStave, bassStave);
+              connector.setType(StaveConnector.type.BRACE);
+              connector.setContext(context).draw();
+            }
+
+            const trebleNotes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, "treble", 0);
+            const bassNotes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, "bass", -12);
+
+            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
+            trebleVoice.addTickables(trebleNotes);
+            const trebleWidth = Math.max(40, trebleStave.getNoteEndX() - trebleStave.getNoteStartX() - 4);
+            new Formatter().joinVoices([trebleVoice]).format([trebleVoice], trebleWidth);
+            trebleVoice.draw(context, trebleStave);
+
+            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
+            bassVoice.addTickables(bassNotes);
+            const bassWidth = Math.max(40, bassStave.getNoteEndX() - bassStave.getNoteStartX() - 4);
+            new Formatter().joinVoices([bassVoice]).format([bassVoice], bassWidth);
+            bassVoice.draw(context, bassStave);
+          } else {
+            const clef: "treble" | "bass" = hand === "R" ? "treble" : "bass";
+            const midiShift = hand === "R" ? 0 : -12;
+            const stave = new Stave(x, y, barWidth);
+            if (bar === 0) {
+              stave.addClef(clef);
+              stave.addTimeSignature("4/4");
+            }
+            stave.setContext(context).draw();
+
+            const notes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, clef, midiShift);
+            const voice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
+            voice.addTickables(notes);
+            const noteWidth = Math.max(40, stave.getNoteEndX() - stave.getNoteStartX() - 4);
+            new Formatter().joinVoices([voice]).format([voice], noteWidth);
+            voice.draw(context, stave);
           }
-          trebleStave.setContext(context).draw();
-
-          const bassStave = new Stave(x, y + bassOffsetY, barWidth);
-          if (bar === 0) {
-            bassStave.addClef("bass");
-            bassStave.addTimeSignature("4/4");
-          }
-          bassStave.setContext(context).draw();
-
-          if (bar === 0) {
-            const connector = new StaveConnector(trebleStave, bassStave);
-            connector.setType(StaveConnector.type.BRACE);
-            connector.setContext(context).draw();
-          }
-
-          const trebleNotes = buildPreviewNotes(StaveNote, trebleEvents, barStartBeat, beatsPerBar, "treble", 0);
-          const bassNotes = buildPreviewNotes(StaveNote, bassEvents, barStartBeat, beatsPerBar, "bass", -12);
-
-          const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-          trebleVoice.addTickables(trebleNotes);
-          const trebleWidth = Math.max(40, trebleStave.getNoteEndX() - trebleStave.getNoteStartX() - 4);
-          new Formatter().joinVoices([trebleVoice]).format([trebleVoice], trebleWidth);
-          trebleVoice.draw(context, trebleStave);
-
-          const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-          bassVoice.addTickables(bassNotes);
-          const bassWidth = Math.max(40, bassStave.getNoteEndX() - bassStave.getNoteStartX() - 4);
-          new Formatter().joinVoices([bassVoice]).format([bassVoice], bassWidth);
-          bassVoice.draw(context, bassStave);
         }
 
         const svg = container.querySelector("svg");
@@ -404,9 +428,15 @@ function PatternPreview({ patternId, hand, compact = false }: { patternId: strin
       disposed = true;
       observer.disconnect();
     };
-  }, [patternId, hand, compact]);
+  }, [patternId, hand, compact, showBothClefs]);
 
-  return <div ref={containerRef} className="w-full overflow-hidden" style={{ minHeight: compact ? 72 : 112 }} />;
+  return (
+    <div
+      ref={containerRef}
+      className="w-full overflow-x-hidden overflow-y-visible"
+      style={{ minHeight: compact ? (showBothClefs ? 104 : 80) : (showBothClefs ? 144 : 96) }}
+    />
+  );
 }
 
 /**
@@ -485,7 +515,7 @@ function PatternPanel({
       </div>
       <div className="px-4 mb-4">
         <div className="border border-[var(--border-color)] bg-white p-1">
-          <PatternPreview patternId={currentPatternId} hand={hand} />
+          <PatternPreview patternId={currentPatternId} hand={hand} showBothClefs />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 space-y-4">
@@ -499,7 +529,7 @@ function PatternPanel({
             }}
             aria-label={`${pattern.nameJa}を選択`}
           >
-            <PatternPreview patternId={pattern.id} hand={hand} />
+            <PatternPreview patternId={pattern.id} hand={hand} showBothClefs />
           </button>
         ))}
       </div>
