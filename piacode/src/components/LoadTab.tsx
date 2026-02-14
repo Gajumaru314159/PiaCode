@@ -23,16 +23,24 @@ export function LoadTab() {
    */
   const progressionSummary = (preset: SavedProgression): string => {
     const { cells, beatsPerBar } = preset.progression;
+    const maxDisplayChords = 8;
     const chords: string[] = [];
+    let hasMore = false;
+
     for (let i = 0; i < cells.length; i += beatsPerBar) {
       const cell = cells[i];
       if (cell.isRest) continue;
       const name = chordDisplayName(cell);
       if (name && (chords.length === 0 || chords[chords.length - 1] !== name)) {
+        if (chords.length >= maxDisplayChords) {
+          hasMore = true;
+          break;
+        }
         chords.push(name);
       }
     }
-    return chords.join("-");
+    if (chords.length === 0) return "";
+    return hasMore ? `${chords.join("-")}-...` : chords.join("-");
   };
 
   /**
