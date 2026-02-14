@@ -1,0 +1,126 @@
+/**
+ * @brief 翻訳テーブル
+ */
+const translations: Record<string, Record<string, string>> = {
+  ja: {
+    "tab.edit": "Edit",
+    "tab.load": "Load",
+    "tab.play": "Play",
+    "tab.option": "Option",
+    "edit.save": "Save",
+    "edit.clear": "Clear",
+    "edit.clearConfirm": "コード進行をすべて消去しますか？",
+    "load.deleteConfirm": "「{name}」を削除しますか？",
+    "load.empty": "保存されたデータがありません",
+    "play.empty": "再生するデータがありません",
+    "option.notation": "楽譜表示",
+    "option.barsPerRow": "横の小節数",
+    "option.rowCount": "縦の小節数",
+    "option.audioTrack": "音声トラック",
+    "option.none": "なし",
+    "option.both": "両手",
+    "option.leftOnly": "左手のみ",
+    "option.rightOnly": "右手のみ",
+    "option.metronomeVolume": "メトロノーム音量",
+    "option.pattern": "演奏パターン",
+    "option.leftRightLock": "左右ロック",
+    "option.leftHand": "左手",
+    "option.rightHand": "右手",
+    "option.tempo": "テンポ",
+    "option.measure": "測定",
+    "option.language": "言語",
+    "save.back": "Back",
+    "save.namePlaceholder": "保存名を入力",
+    "save.invalidName": "無効な名前です",
+    "common.on": "ON",
+    "common.off": "OFF",
+    "common.cancel": "キャンセル",
+    "common.ok": "OK",
+  },
+  en: {
+    "tab.edit": "Edit",
+    "tab.load": "Load",
+    "tab.play": "Play",
+    "tab.option": "Option",
+    "edit.save": "Save",
+    "edit.clear": "Clear",
+    "edit.clearConfirm": "Clear all chord progression?",
+    "load.deleteConfirm": "Delete \"{name}\"?",
+    "load.empty": "No saved data",
+    "play.empty": "No data to play",
+    "option.notation": "Notation",
+    "option.barsPerRow": "Bars per row",
+    "option.rowCount": "Rows",
+    "option.audioTrack": "Audio Track",
+    "option.none": "None",
+    "option.both": "Both",
+    "option.leftOnly": "Left only",
+    "option.rightOnly": "Right only",
+    "option.metronomeVolume": "Metronome Volume",
+    "option.pattern": "Pattern",
+    "option.leftRightLock": "L/R Lock",
+    "option.leftHand": "Left",
+    "option.rightHand": "Right",
+    "option.tempo": "Tempo",
+    "option.measure": "Tap",
+    "option.language": "Language",
+    "save.back": "Back",
+    "save.namePlaceholder": "Enter name",
+    "save.invalidName": "Invalid name",
+    "common.on": "ON",
+    "common.off": "OFF",
+    "common.cancel": "Cancel",
+    "common.ok": "OK",
+  },
+  zh: {
+    "tab.edit": "Edit",
+    "tab.load": "Load",
+    "tab.play": "Play",
+    "tab.option": "Option",
+    "edit.save": "Save",
+    "edit.clear": "Clear",
+    "edit.clearConfirm": "清除所有和弦进行？",
+    "load.deleteConfirm": "删除「{name}」？",
+    "load.empty": "没有保存的数据",
+    "play.empty": "没有可播放的数据",
+    "option.notation": "乐谱显示",
+    "option.barsPerRow": "每行小节数",
+    "option.rowCount": "行数",
+    "option.audioTrack": "音轨",
+    "option.none": "无",
+    "option.both": "双手",
+    "option.leftOnly": "仅左手",
+    "option.rightOnly": "仅右手",
+    "option.metronomeVolume": "节拍器音量",
+    "option.pattern": "演奏模式",
+    "option.leftRightLock": "左右锁定",
+    "option.leftHand": "左手",
+    "option.rightHand": "右手",
+    "option.tempo": "速度",
+    "option.measure": "测量",
+    "option.language": "语言",
+    "save.back": "Back",
+    "save.namePlaceholder": "输入名称",
+    "save.invalidName": "无效名称",
+    "common.on": "ON",
+    "common.off": "OFF",
+    "common.cancel": "取消",
+    "common.ok": "确定",
+  },
+};
+
+/**
+ * @brief 翻訳テキストを取得する
+ * @param key 翻訳キー
+ * @param lang 言語コード
+ * @param params 置換パラメータ
+ */
+export function t(key: string, lang: string = "ja", params?: Record<string, string>): string {
+  let text = translations[lang]?.[key] || translations["ja"]?.[key] || key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      text = text.replace(`{${k}}`, v);
+    }
+  }
+  return text;
+}
