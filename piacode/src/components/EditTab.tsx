@@ -12,8 +12,8 @@ const GRID_COLS = 11;
 const GRID_UNIT = "10vw";
 const GRID_LIGHT_BORDER = "rgba(120, 170, 220, 0.35)";
 const GRID_CELL_STYLE: React.CSSProperties = {
-  width: GRID_UNIT,
-  height: GRID_UNIT,
+  width: `calc(${GRID_UNIT} + 1px)`,
+  height: `calc(${GRID_UNIT} + 1px)`,
   minWidth: GRID_UNIT,
   minHeight: GRID_UNIT,
   boxSizing: "border-box",
@@ -65,7 +65,8 @@ function GridRow({ overlays = [] }: { overlays?: GridOverlay[] }) {
         const overlayStyle: React.CSSProperties = {
           ...GRID_OVERLAY_BASE_STYLE,
           left: `calc(${GRID_UNIT} * ${overlay.start - 1})`,
-          width: `calc(${GRID_UNIT} * ${span})`,
+          width: `calc(${GRID_UNIT} * ${span} + 1px)`,
+          height: `calc(${GRID_UNIT} + 1px)`,
           ...overlay.style,
         };
         if (overlay.asButton) {
@@ -188,7 +189,7 @@ export function EditTab() {
       <KeySignatureDisplay keyRoot={keyRoot} />
 
       {/* 11列グリッド上のマトリックス入力 */}
-      <div className="shrink-0 mt-2 overflow-x-hidden">
+      <div className="shrink-0 mt-2 overflow-x-hidden overflow-y-hidden">
         {/* 上段ルート行（◀ + 7ルート + ▶） */}
         <GridRow
           overlays={[
@@ -199,13 +200,13 @@ export function EditTab() {
               asButton: true,
               ariaLabel: "前のキーへ",
               onClick: () => shiftKey(-1),
-              className: "flex items-center justify-center border border-black text-lg font-bold",
+              className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
             ...diatonicRoots.map((root, idx) => ({
               key: `head-root-${root}`,
               start: 3 + idx,
               content: root,
-              className: "flex items-center justify-center border border-black text-sm font-bold",
+              className: "flex items-center justify-center text-sm bg-black text-white opacity-80",
             })),
             {
               key: "next-key",
@@ -214,7 +215,7 @@ export function EditTab() {
               asButton: true,
               ariaLabel: "次のキーへ",
               onClick: () => shiftKey(1),
-              className: "flex items-center justify-center border border-black text-lg font-bold",
+              className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
           ]}
         />
@@ -228,24 +229,22 @@ export function EditTab() {
                 key: `left-quality-${quality}`,
                 start: 2,
                 content: quality,
-                className: "flex items-center justify-center text-sm font-bold",
-                style: { color: "var(--text-secondary)" },
+                className: "flex items-center justify-center text-xs bg-black text-white opacity-80"
               },
               ...diatonicRoots.map((root, idx) => ({
                 key: `matrix-${quality}-${root}`,
                 start: 3 + idx,
-                content: null,
+                content: quality,
                 asButton: true,
                 ariaLabel: `${root}${quality}`,
                 onClick: () => inputChord(root, quality),
-                className: "border border-black transition-opacity hover:opacity-70 active:opacity-60",
+                className: "flex items-center justify-center text-xs opacity-50",
               })),
               {
                 key: `right-quality-${quality}`,
                 start: 10,
                 content: quality,
-                className: "flex items-center justify-center text-sm font-bold",
-                style: { color: "var(--text-secondary)" },
+                className: "flex items-center justify-center text-xs bg-black text-white opacity-80"
               },
             ]}
           />
@@ -261,20 +260,19 @@ export function EditTab() {
               asButton: true,
               ariaLabel: "休符入力",
               onClick: inputRest,
-              className: "flex items-center justify-center border border-black text-lg",
+              className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
             ...diatonicRoots.map((root, idx) => ({
               key: `bottom-root-${root}`,
               start: 3 + idx,
               content: root,
-              className: "flex items-center justify-center border border-black text-sm font-bold",
+              className: "flex items-center justify-center text-sm bg-black text-white opacity-80",
             })),
             {
               key: "trash-icon",
               start: 10,
-              content: "🗑",
-              className: "flex items-center justify-center border border-black text-lg",
-              style: { color: "#4d3d67" },
+              content: "←",
+              className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
           ]}
         />
@@ -300,7 +298,7 @@ export function EditTab() {
               asButton: true,
               ariaLabel: "保存",
               onClick: () => dispatch({ type: "SET_SHOW_SAVE_PANEL", show: true }),
-              className: "flex items-center justify-center text-sm font-bold whitespace-nowrap leading-none",
+              className: "flex items-center justify-center text-xs font-bold whitespace-nowrap leading-none",
             },
             {
               key: "clear",
@@ -309,7 +307,7 @@ export function EditTab() {
               asButton: true,
               ariaLabel: "クリア",
               onClick: handleClear,
-              className: "flex items-center justify-center text-sm font-bold whitespace-nowrap leading-none",
+              className: "flex items-center justify-center text-xs font-bold whitespace-nowrap leading-none",
             },
             {
               key: "transpose-sharp",
