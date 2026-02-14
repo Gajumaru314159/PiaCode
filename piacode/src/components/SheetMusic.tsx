@@ -14,6 +14,7 @@ interface SheetMusicProps {
   tempo: number;
   leftPatternId: string;
   rightPatternId: string;
+  maxBeats: number;
 }
 
 /**
@@ -28,6 +29,7 @@ export function SheetMusic({
   tempo,
   leftPatternId,
   rightPatternId,
+  maxBeats,
 }: SheetMusicProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -50,7 +52,9 @@ export function SheetMusic({
         container.innerHTML = "";
 
         const { beatsPerBar, cells } = progression;
-        const totalBars = Math.floor(cells.length / beatsPerBar);
+        const totalBars = maxBeats > 0
+          ? Math.floor(maxBeats / beatsPerBar)
+          : Math.floor(cells.length / beatsPerBar);
         const normalizedStartBar = Math.max(0, Math.min(startBar, Math.max(totalBars - 1, 0)));
         const maxDisplayBars = barsPerRow * rowCount;
         const displayBars = Math.min(maxDisplayBars, Math.max(totalBars - normalizedStartBar, 0));
@@ -199,7 +203,7 @@ export function SheetMusic({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [progression, currentBar, startBar, barsPerRow, rowCount, tempo, leftPatternId, rightPatternId]);
+  }, [progression, currentBar, startBar, barsPerRow, rowCount, tempo, leftPatternId, rightPatternId, maxBeats]);
 
   return <div ref={containerRef} className="w-full overflow-hidden" />;
 }

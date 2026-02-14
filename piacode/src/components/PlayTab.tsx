@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { resolveLoopLength, createRestToken } from "@/lib/music";
+import { resolveLoopLengthFromCells, createRestToken } from "@/lib/music";
 import { t } from "@/lib/i18n";
 import { getPattern, midiToFreq } from "@/lib/audio";
 import { SheetMusic } from "./SheetMusic";
@@ -15,7 +15,7 @@ export function PlayTab() {
   const { progression, playback, options } = state;
   const lang = options.language;
 
-  const loopLength = resolveLoopLength(progression.cells.length, progression.beatsPerBar);
+  const loopLength = resolveLoopLengthFromCells(progression.cells, progression.beatsPerBar);
 
   // 再生エンジンの参照
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -220,6 +220,14 @@ export function PlayTab() {
     };
   }, [dispatch]);
 
+  // 末尾休符切り捨て後にシーク位置が範囲外なら補正
+  useEffect(() => {
+    if (loopLength <= 0) return;
+    if (playback.currentBeat >= loopLength) {
+      dispatch({ type: "SET_PLAYBACK", playback: { currentBeat: loopLength - 1 } });
+    }
+  }, [loopLength, playback.currentBeat, dispatch]);
+
   /**
    * @brief シークバー変更
    */
@@ -270,6 +278,7 @@ export function PlayTab() {
           tempo={playback.tempo}
           leftPatternId={options.leftPatternId}
           rightPatternId={options.rightPatternId}
+          maxBeats={loopLength}
         />
       </div>
 
