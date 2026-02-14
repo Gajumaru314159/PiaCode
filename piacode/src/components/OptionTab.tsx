@@ -329,12 +329,13 @@ function PatternPreview({
 
         const width = container.clientWidth || 280;
         const logicalWidth = compact ? Math.max(width * 1.7, 340) : Math.max(width * 1.9, 600);
-        const height = showBothClefs ? (compact ? 128 : 196) : (compact ? 96 : 132);
-        const rowTop = showBothClefs ? (compact ? 10 : 18) : (compact ? 16 : 22);
-        const bassOffsetY = compact ? 56 : 74;
+        const height = showBothClefs ? (compact ? 188 : 188) : (compact ? 136 : 170);
+        const rowTop = showBothClefs ? (compact ? 14 : 16) : (compact ? 30 : 36);
+        const bassOffsetY = compact ? 68 : 74;
         const beatsPerBar = 4;
         const bars = 2;
-        const barWidth = Math.floor((logicalWidth - 18) / bars);
+        const horizontalPadding = 14;
+        const barWidth = Math.floor((logicalWidth - horizontalPadding * 2) / bars);
         const previewChord = createChordToken("C", "M");
 
         const renderer = new Renderer(container, Renderer.Backends.SVG);
@@ -344,7 +345,7 @@ function PatternPreview({
 
         const activeEvents = buildPreviewEvents(patternId, previewChord, beatsPerBar, bars);
         for (let bar = 0; bar < bars; bar++) {
-          const x = 8 + bar * barWidth;
+          const x = horizontalPadding + bar * barWidth;
           const y = rowTop;
           const barStartBeat = bar * beatsPerBar;
 
@@ -434,7 +435,7 @@ function PatternPreview({
     <div
       ref={containerRef}
       className="w-full overflow-x-hidden overflow-y-visible"
-      style={{ minHeight: compact ? (showBothClefs ? 104 : 80) : (showBothClefs ? 144 : 96) }}
+      style={{ minHeight: compact ? (showBothClefs ? 116 : 92) : (showBothClefs ? 136 : 114) }}
     />
   );
 }
@@ -510,15 +511,7 @@ function PatternPanel({
           Back
         </button>
       </div>
-      <div className="px-4 mb-2 text-sm font-bold">
-        現在の演奏パターン
-      </div>
-      <div className="px-4 mb-4">
-        <div className="border border-[var(--border-color)] bg-white p-1">
-          <PatternPreview patternId={currentPatternId} hand={hand} showBothClefs />
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
         {PATTERNS.map((pattern) => (
           <button
             key={pattern.id}
@@ -529,7 +522,7 @@ function PatternPanel({
             }}
             aria-label={`${pattern.nameJa}を選択`}
           >
-            <PatternPreview patternId={pattern.id} hand={hand} showBothClefs />
+            <PatternPreview patternId={pattern.id} hand={hand} compact showBothClefs />
           </button>
         ))}
       </div>

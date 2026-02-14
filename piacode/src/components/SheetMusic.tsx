@@ -32,7 +32,10 @@ export function SheetMusic({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+    let disposed = false;
+    let rafId: number | null = null;
 
     // VexFlowを動的にインポートして描画する
     const renderSheet = async () => {
@@ -43,7 +46,7 @@ export function SheetMusic({
         const { Renderer, Stave, StaveNote, Voice, Formatter, StaveConnector } = VexModule.Flow || VexModule;
 
         const container = containerRef.current;
-        if (!container) return;
+        if (disposed || !container) return;
         container.innerHTML = "";
 
         const { beatsPerBar, cells } = progression;
@@ -179,7 +182,28 @@ export function SheetMusic({
       }
     };
 
-    void renderSheet();
+    const scheduleRender = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        void renderSheet();
+      });
+    };
+
+    const observer = new ResizeObserver(() => {
+      scheduleRender();
+    });
+    observer.observe(container);
+    scheduleRender();
+
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, [progression, currentBar, startBar, barsPerRow, rowCount, tempo, leftPatternId, rightPatternId]);
 
   return <div ref={containerRef} className="w-full overflow-hidden" />;
