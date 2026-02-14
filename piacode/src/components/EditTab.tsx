@@ -271,7 +271,7 @@ export function EditTab() {
             {
               key: "trash-icon",
               start: 10,
-              content: "←",
+              content: null,
               className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
           ]}
@@ -579,6 +579,8 @@ function ChordGrid() {
           />
         ))}
         {/* 自動調整したい */}
+        <GridRow />
+        <GridRow />
         <GridRow />
         <GridRow />
         <GridRow />
