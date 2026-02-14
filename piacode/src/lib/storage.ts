@@ -141,6 +141,7 @@ export function deleteUserPreset(id: string): boolean {
 export const DEFAULT_OPTIONS: AppOptions = {
   barsPerRow: 2,
   rowCount: 3,
+  pageTurnMode: "follow",
   audioTrack: "both",
   metronomeVolume: 0.5,
   leftRightLock: true,
@@ -164,6 +165,9 @@ export function loadOptions(): AppOptions {
 
   if (!["both", "left", "right", "none"].includes(merged.audioTrack)) {
     merged.audioTrack = DEFAULT_OPTIONS.audioTrack;
+  }
+  if (!["follow", "page"].includes(merged.pageTurnMode)) {
+    merged.pageTurnMode = DEFAULT_OPTIONS.pageTurnMode;
   }
   merged.barsPerRow = merged.barsPerRow === 4 ? 4 : 2;
   merged.rowCount = Math.min(6, Math.max(1, Number(merged.rowCount) || DEFAULT_OPTIONS.rowCount));

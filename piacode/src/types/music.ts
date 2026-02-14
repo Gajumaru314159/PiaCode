@@ -68,6 +68,7 @@ export interface PlaybackState {
 export interface AppOptions {
   barsPerRow: 2 | 4;
   rowCount: number;
+  pageTurnMode: "follow" | "page";
   audioTrack: "both" | "left" | "right" | "none";
   metronomeVolume: number;
   leftRightLock: boolean;

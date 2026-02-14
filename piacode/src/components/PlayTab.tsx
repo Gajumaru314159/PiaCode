@@ -250,7 +250,18 @@ export function PlayTab() {
   }
 
   const currentBar = Math.floor(playback.currentBeat / progression.beatsPerBar);
-  const startBar = Math.floor(currentBar / options.barsPerRow) * options.barsPerRow;
+  const barsPerPage = options.barsPerRow * options.rowCount;
+  const beatsPerPage = barsPerPage * progression.beatsPerBar;
+  let pageReferenceBeat = playback.currentBeat;
+  if (options.pageTurnMode === "page" && playback.isPlaying) {
+    pageReferenceBeat = playback.currentBeat + 1;
+    if (playback.isLoop && loopLength > 0) {
+      pageReferenceBeat %= loopLength;
+    }
+  }
+  const startBar = options.pageTurnMode === "page"
+    ? Math.floor(pageReferenceBeat / beatsPerPage) * barsPerPage
+    : Math.floor(currentBar / options.barsPerRow) * options.barsPerRow;
 
   return (
     <div className="flex flex-col h-full overflow-x-hidden">

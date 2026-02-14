@@ -131,6 +131,19 @@ export function OptionTab() {
               ))}
             </div>
           </div>
+          <div>
+            <label className="text-xs block mb-1">{t("option.pageTurnMode", lang)}</label>
+            <div className="flex flex-wrap gap-1">
+              {(["follow", "page"] as const).map((v) => (
+                <ToggleButton
+                  key={v}
+                  active={options.pageTurnMode === v}
+                  onClick={() => updateOption("pageTurnMode", v)}
+                  label={t(v === "follow" ? "option.follow" : "option.page", lang)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </Section>
 
