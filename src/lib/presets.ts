@@ -47,10 +47,11 @@ function parseChord(str: string): ChordToken {
  */
 function buildProgression(chords: string, beatsPerBar: 3 | 4 = 4): Progression {
   const tokens = chords.split("-").map(parseChord);
-  // 各コードを1小節分（beatsPerBar拍）に展開
+  // 4拍子は2拍ごと、3拍子は1小節ごとにコードを展開
+  const beatsPerChord = beatsPerBar === 4 ? 2 : beatsPerBar;
   const cells: ChordToken[] = [];
   for (const token of tokens) {
-    for (let i = 0; i < beatsPerBar; i++) {
+    for (let i = 0; i < beatsPerChord; i++) {
       cells.push({ ...token });
     }
   }
