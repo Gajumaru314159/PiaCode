@@ -5,11 +5,27 @@ import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
 import { PATTERNS, getPattern } from "@/lib/audio";
 import { createChordToken } from "@/lib/music";
+import { SYSTEM_PRESETS } from "@/lib/presets";
 import {
   buildBarNotationModel,
   buildVexVoiceData,
   generateResolvedBarNotesFromChords,
 } from "@/lib/patternRender";
+import {
+  exportStorageMigrationData,
+  importStorageMigrationData,
+  loadAutosave,
+  loadLastOpened,
+  loadOptions,
+  loadUserPresets,
+} from "@/lib/storage";
+
+function buildMigrationFilename(date: Date = new Date()): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `piascore-${year}-${month}-${day}.dat`;
+}
 
 /**
  * @brief Optionタブ - 各種設定画面
@@ -25,6 +41,12 @@ export function OptionTab() {
   // テンポ計測用
   const tapTimesRef = useRef<number[]>([]);
   const [tempoInput, setTempoInput] = useState(String(options.tempo));
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [migrationStatus, setMigrationStatus] = useState("");
+
+  useEffect(() => {
+    setTempoInput(String(options.tempo));
+  }, [options.tempo]);
 
   /**
    * @brief オプション値を更新する
@@ -90,6 +112,95 @@ export function OptionTab() {
       tapTimesRef.current = taps.slice(-8);
     }
   }, [updateOption]);
+
+  /**
+   * @brief localStorageから状態を再同期する
+   */
+  const syncStateFromStorage = useCallback(() => {
+    const importedOptions = loadOptions();
+    const importedPresets = loadUserPresets();
+    const importedLastOpened = loadLastOpened();
+
+    dispatch({ type: "SET_OPTIONS", options: importedOptions });
+    dispatch({
+      type: "SET_PLAYBACK",
+      playback: {
+        tempo: importedOptions.tempo,
+        isPlaying: false,
+        currentBeat: 0,
+      },
+    });
+    dispatch({ type: "SET_USER_PRESETS", presets: importedPresets });
+    dispatch({ type: "SET_LAST_OPENED", info: importedLastOpened });
+
+    if (!importedLastOpened) return;
+
+    if (importedLastOpened.source === "autosave") {
+      const autosave = loadAutosave();
+      if (autosave) {
+        dispatch({ type: "SET_PROGRESSION", progression: autosave.progression });
+        dispatch({ type: "SET_KEY", key: autosave.matrixKey });
+      }
+      return;
+    }
+
+    const sourcePresets = importedLastOpened.source === "system" ? SYSTEM_PRESETS : importedPresets;
+    const matched = sourcePresets.find((preset) => preset.id === importedLastOpened.id);
+    if (!matched) return;
+
+    dispatch({ type: "SET_PROGRESSION", progression: { ...matched.progression, cursor: 0 } });
+    dispatch({ type: "SET_KEY", key: matched.matrixKey });
+  }, [dispatch]);
+
+  /**
+   * @brief 移行ファイルとして現在データを保存する
+   */
+  const handleExportMigration = useCallback(() => {
+    try {
+      const { text, count } = exportStorageMigrationData();
+      const blob = new Blob([text], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = buildMigrationFilename();
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      setMigrationStatus(t("option.migrationExported", lang, { count: String(count) }));
+    } catch {
+      setMigrationStatus(t("option.migrationFailed", lang));
+    }
+  }, [lang]);
+
+  /**
+   * @brief インポート用ファイル選択ダイアログを開く
+   */
+  const handleClickImport = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  /**
+   * @brief 移行ファイルを読み込み、データを復元する
+   */
+  const handleImportMigration = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const count = importStorageMigrationData(text);
+      syncStateFromStorage();
+      setMigrationStatus(t("option.migrationImported", lang, { count: String(count) }));
+    } catch (error) {
+      if (error instanceof Error && (error.message === "invalid-json" || error.message === "invalid-format")) {
+        setMigrationStatus(t("option.migrationInvalidFile", lang));
+      } else {
+        setMigrationStatus(t("option.migrationFailed", lang));
+      }
+    } finally {
+      input.value = "";
+    }
+  }, [lang, syncStateFromStorage]);
 
   if (showPatternPanel) {
     return (
@@ -284,6 +395,38 @@ export function OptionTab() {
             />
           ))}
         </div>
+      </Section>
+
+      {/* データ移行 */}
+      <Section title={t("option.dataMigration", lang)}>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExportMigration}
+            className="px-4 py-2 box-frame text-sm font-bold"
+            aria-label={t("option.exportData", lang)}
+          >
+            {t("option.exportData", lang)}
+          </button>
+          <button
+            onClick={handleClickImport}
+            className="px-4 py-2 box-frame text-sm font-bold"
+            aria-label={t("option.importData", lang)}
+          >
+            {t("option.importData", lang)}
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".dat,application/json,text/plain"
+            className="hidden"
+            onChange={handleImportMigration}
+          />
+        </div>
+        {migrationStatus && (
+          <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
+            {migrationStatus}
+          </p>
+        )}
       </Section>
     </div>
   );
