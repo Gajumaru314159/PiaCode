@@ -32,7 +32,7 @@ export function AppShell() {
   return (
     <div className="flex flex-col h-full relative" style={{ zIndex: 1 }}>
       {/* タブバー */}
-      <nav className="flex shrink-0 gap-px px-1 h-12 overflow-visible" role="tablist" aria-label="メインナビゲーション">
+      <nav className="relative isolate flex shrink-0 gap-px px-1 h-12 overflow-visible" role="tablist" aria-label="メインナビゲーション">
         {TABS.map((tab) => {
           const isActive = state.currentTab === tab.id;
           return (
@@ -49,12 +49,7 @@ export function AppShell() {
                 fontSize: "1rem",
                 fontWeight: 700,
                 transform: isActive ? "translateY(-2px)" : "translateY(-10px)",
-                boxShadow: isActive
-                  ? "0 4px 8px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.2)"
-                  : "0 2px 5px rgba(0, 0, 0, 0.16)",
-                zIndex: isActive ? 4 : 2,
-                borderTopLeftRadius: "2px",
-                borderTopRightRadius: "2px",
+                zIndex: isActive ? 1 : 2,
               }}
             >
               {t(`tab.${tab.id}`, lang)}
