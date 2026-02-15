@@ -22,12 +22,12 @@ export function LoadTab() {
    * @brief 進行を簡潔に表示する（コード名をハイフン区切りで）
    */
   const progressionSummary = (preset: SavedProgression): string => {
-    const { cells, beatsPerBar } = preset.progression;
+    const { cells } = preset.progression;
     const maxDisplayChords = 8;
     const chords: string[] = [];
     let hasMore = false;
 
-    for (let i = 0; i < cells.length; i += beatsPerBar) {
+    for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (cell.isRest) continue;
       const name = chordDisplayName(cell);
