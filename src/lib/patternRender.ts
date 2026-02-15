@@ -395,7 +395,8 @@ function collectBeamGroups(atoms: NotationAtom[], totalTicks: number): number[][
         if (atom.isRest) return false;
         if (atom.startTick < beatStart) return false;
         if (atom.startTick >= beatStart + TICKS_PER_BEAT) return false;
-        return atom.durationTick <= 6;
+        // 1拍未満の音価（8分・16分・付点8分など）は1拍単位でビーム対象にする
+        return atom.durationTick < TICKS_PER_BEAT;
       })
       .sort((a, b) => a.atom.startTick - b.atom.startTick);
 
