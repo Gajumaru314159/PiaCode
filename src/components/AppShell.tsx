@@ -32,7 +32,7 @@ export function AppShell() {
   return (
     <div className="flex flex-col h-full relative" style={{ zIndex: 1 }}>
       {/* タブバー */}
-      <nav className="relative isolate flex shrink-0 gap-px px-1 h-12 overflow-visible" role="tablist" aria-label="メインナビゲーション">
+      <nav className="relative isolate z-20 flex shrink-0 gap-px px-1 h-7 overflow-visible" role="tablist" aria-label="メインナビゲーション">
         {TABS.map((tab) => {
           const isActive = state.currentTab === tab.id;
           return (
@@ -42,13 +42,14 @@ export function AppShell() {
               aria-selected={isActive}
               aria-label={t(`tab.${tab.id}`, lang)}
               onClick={() => dispatch({ type: "SET_TAB", tab: tab.id })}
-              className="relative flex-1 h-14 pt-6 pb-2 text-center font-bold text-base transition-all"
+              className="relative flex-1 h-10 min-h-0 pt-2 pb-1 text-center font-bold text-sm transition-all"
               style={{
                 backgroundColor: tab.color,
                 opacity: isActive ? 1 : 0.82,
+                minHeight: 0,
                 fontSize: "1rem",
                 fontWeight: 700,
-                transform: isActive ? "translateY(-2px)" : "translateY(-10px)",
+                transform: isActive ? "translateY(-1px)" : "translateY(-6px)",
                 borderBottom: "1px solid rgba(0, 0, 0, 0.2)",
                 borderRight: "1px solid rgba(0, 0, 0, 0.1)",
                 zIndex: isActive ? 1 : 2,
@@ -61,7 +62,7 @@ export function AppShell() {
       </nav>
 
       {/* タブコンテンツ */}
-      <main className="flex-1 overflow-hidden relative pt-1">
+      <main className="relative z-0 flex-1 overflow-hidden pt-1">
         {state.currentTab === "edit" && <EditTab />}
         {state.currentTab === "load" && <LoadTab />}
         {state.currentTab === "play" && <PlayTab />}
