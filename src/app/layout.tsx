@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import type { CSSProperties, ReactNode } from "react";
+import { withBasePath } from "@/lib/assetPath";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,11 +18,17 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
+  const bodyStyle = {
+    "--bg-paper-image": `url("${withBasePath("/images/backgrounds/paper.webp")}")`,
+    "--box-frame-image": `url("${withBasePath("/images/backgrounds/box.webp")}")`,
+    "--box-frame-fill-image": `url("${withBasePath("/images/backgrounds/box-fill.webp")}")`,
+  } as CSSProperties;
+
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body style={bodyStyle}>{children}</body>
     </html>
   );
 }
