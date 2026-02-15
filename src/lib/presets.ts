@@ -1,5 +1,6 @@
 import { SavedProgression, ChordToken, Progression } from "@/types/music";
 import { createChordToken, createRestToken } from "./music";
+import { t } from "./i18n";
 
 /**
  * @brief コード文字列からChordTokenを生成する
@@ -121,3 +122,23 @@ export const SYSTEM_PRESETS: SavedProgression[] = [
     isSystem: true,
   },
 ];
+
+const SYSTEM_PRESET_NAME_KEYS: Record<string, string> = {
+  "system.canon": "preset.system.canon",
+  "system.oudou": "preset.system.oudou",
+  "system.marusa": "preset.system.marusa",
+  "system.junkan": "preset.system.junkan",
+  "system.komuro": "preset.system.komuro",
+  "system.6251": "preset.system.6251",
+};
+
+/**
+ * @brief プリセットの表示名を言語に応じて取得する
+ * @param preset 対象プリセット
+ * @param lang 言語コード
+ */
+export function getPresetDisplayName(preset: SavedProgression, lang: string): string {
+  if (!preset.isSystem) return preset.name;
+  const key = SYSTEM_PRESET_NAME_KEYS[preset.id];
+  return key ? t(key, lang) : preset.name;
+}
