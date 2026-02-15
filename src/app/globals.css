@@ -48,6 +48,11 @@ button, [role="button"] {
   border-image-source: url("/images/backgrounds/box-fill.webp");
 }
 
+.paper-bg-scroll {
+  background: var(--bg-paper);
+  background-attachment: local;
+}
+
 /* スクロールバーのスタイル */
 ::-webkit-scrollbar {
   width: 6px;

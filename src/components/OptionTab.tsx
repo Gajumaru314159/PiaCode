@@ -107,7 +107,7 @@ export function OptionTab() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
+    <div className="h-full overflow-y-auto p-4 space-y-4 paper-bg-scroll">
       {/* 楽譜表示 */}
       <Section title={t("option.notation", lang)}>
         <div className="flex flex-wrap gap-4">
@@ -550,7 +550,7 @@ function PatternPanel({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="h-full flex flex-col" style={{ background: "var(--bg-paper)" }}>
+    <div className="h-full flex flex-col paper-bg-scroll">
       <div className="flex justify-end p-4">
         <button
           onClick={onClose}
@@ -560,7 +560,7 @@ function PatternPanel({
           Back
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4 paper-bg-scroll">
         {PATTERNS.map((pattern) => (
           <button
             key={pattern.id}

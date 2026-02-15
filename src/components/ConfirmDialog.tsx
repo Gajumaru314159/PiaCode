@@ -33,8 +33,7 @@ export function ConfirmDialog({ message, okLabel = "はい", cancelLabel, onOk, 
       onClick={(e) => { if (e.target === overlayRef.current) onCancel(); }}
     >
       <div
-        className="mx-6 p-6 border border-[var(--border-color)] shadow-lg max-w-sm w-full"
-        style={{ background: "var(--bg-paper)" }}
+        className="mx-6 p-6 border border-[var(--border-color)] shadow-lg max-w-sm w-full paper-bg-scroll"
       >
         <p className="text-sm text-center mb-6 whitespace-pre-wrap">{message}</p>
         <div className="flex justify-center gap-4">
