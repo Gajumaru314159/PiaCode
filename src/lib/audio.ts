@@ -173,8 +173,8 @@ function definePattern(
 
 const quarterPulsePattern = definePattern({
   id: "manual.quarterPulse",
-  name: "Quarter Pulse",
-  nameJa: "4分パルス",
+  name: "Quarter Chords + Half Bass",
+  nameJa: "4分和音+2分ベース",
   notesByHand: {
     // *   *   *   *   
     // *       *        
@@ -193,8 +193,8 @@ const quarterPulsePattern = definePattern({
 
 const eighthBassPulsePattern = definePattern({
   id: "manual.eighthBassPulse",
-  name: "Eighth Bass Pulse",
-  nameJa: "8分ベースパルス",
+  name: "Quarter Chords + Eighth Bass",
+  nameJa: "4分和音+8分ベース",
   notesByHand: {
     // *   *   *   *   
     // * * * * * * * *  
@@ -219,8 +219,8 @@ const eighthBassPulsePattern = definePattern({
 
 const halfChordRisePattern = definePattern({
   id: "manual.halfChordRise",
-  name: "Half Chord Rise",
-  nameJa: "ハーフコード上行",
+  name: "Half Chords + Rising Bass",
+  nameJa: "2分和音+上行ベース",
   notesByHand: {
     // *       *       
     // * * * * * * * *  
@@ -246,8 +246,8 @@ const halfChordRisePattern = definePattern({
  */
 const restOffbeatCompPattern = definePattern({
   id: "manual.restOffbeatComp",
-  name: "Rest Offbeat Comp",
-  nameJa: "休符入りオフビート",
+  name: "Offbeat Comp + Dotted Bass",
+  nameJa: "裏打ち+付点ベース",
   notesByHand: {
     // - * - * - * - *
     // *   -   *   -
@@ -275,8 +275,8 @@ const restOffbeatCompPattern = definePattern({
  */
 const restCallResponsePattern = definePattern({
   id: "manual.restCallResponse",
-  name: "Rest Call Response",
-  nameJa: "休符入りコールレスポンス",
+  name: "Call & Response Stabs",
+  nameJa: "コール&レスポンス刻み",
   notesByHand: {
     // *   -   * - * -
     // * - * - * - * -
@@ -306,8 +306,8 @@ const restCallResponsePattern = definePattern({
  */
 const imageChordDotsBassPattern = definePattern({
   id: "manual.imageChordDotsBass",
-  name: "Chord Dots Bass",
-  nameJa: "4分和音+付点ベース",
+  name: "Quarter Chords + Dotted Bass",
+  nameJa: "4分和音+付点8分ベース",
   notesByHand: {
     // *   *   *   *   
     // *     * *     *  
@@ -331,8 +331,8 @@ const imageChordDotsBassPattern = definePattern({
  */
 const imagePhraseAltBassPattern = definePattern({
   id: "manual.imagePhraseAltBass",
-  name: "Phrase Alt Bass",
-  nameJa: "フレーズ+交互ベース",
+  name: "Eighth Phrase + Quarter Chords",
+  nameJa: "8分フレーズ+4分和音",
   notesByHand: {
     R: [
       N(6, 0, [T(3, 0), T(2, 0)]),
@@ -358,8 +358,8 @@ const imagePhraseAltBassPattern = definePattern({
  */
 const imageAccentSyncPattern = definePattern({
   id: "manual.imageAccentSync",
-  name: "Accent Sync",
-  nameJa: "アクセントシンク",
+  name: "Sixteenth Accent Syncopation",
+  nameJa: "16分アクセント+シンコペ",
   notesByHand: {
     R: [
       N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
