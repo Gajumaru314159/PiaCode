@@ -32,7 +32,7 @@ function buildMigrationFilename(date: Date = new Date()): string {
  */
 export function OptionTab() {
   const { state, dispatch } = useApp();
-  const { options } = state;
+  const { options, progression } = state;
   const lang = options.language;
 
   const [showPatternPanel, setShowPatternPanel] = useState(false);
@@ -204,12 +204,13 @@ export function OptionTab() {
 
   if (showPatternPanel) {
     return (
-      <PatternPanel
-        hand={patternHand}
-        lang={lang}
-        onClose={() => setShowPatternPanel(false)}
-        currentPatternId={patternHand === "R" ? options.rightPatternId : options.leftPatternId}
-        onSelect={(id) => {
+        <PatternPanel
+          hand={patternHand}
+          lang={lang}
+          beatsPerBar={progression.beatsPerBar}
+          onClose={() => setShowPatternPanel(false)}
+          currentPatternId={patternHand === "R" ? options.rightPatternId : options.leftPatternId}
+          onSelect={(id) => {
           updateOption(patternHand === "R" ? "rightPatternId" : "leftPatternId", id);
           setShowPatternPanel(false);
         }}
@@ -332,7 +333,7 @@ export function OptionTab() {
             <div className="px-1 text-left text-xs font-bold">
               {lang === "ja" ? getPattern(options.rightPatternId).nameJa : getPattern(options.rightPatternId).name}
             </div>
-            <PatternPreview patternId={options.rightPatternId} hand="R" compact />
+            <PatternPreview patternId={options.rightPatternId} hand="R" beatsPerBar={progression.beatsPerBar} compact />
           </button>
         </div>
 
@@ -347,7 +348,7 @@ export function OptionTab() {
             <div className="px-1 text-left text-xs font-bold">
               {lang === "ja" ? getPattern(options.leftPatternId).nameJa : getPattern(options.leftPatternId).name}
             </div>
-            <PatternPreview patternId={options.leftPatternId} hand="L" compact />
+            <PatternPreview patternId={options.leftPatternId} hand="L" beatsPerBar={progression.beatsPerBar} compact />
           </button>
         </div>
       </Section>
@@ -461,11 +462,13 @@ function ToggleButton({ active, onClick, label }: { active: boolean; onClick: ()
 function PatternPreview({
   patternId,
   hand,
+  beatsPerBar,
   compact = false,
   showBothClefs = false,
 }: {
   patternId: string;
   hand: "L" | "R";
+  beatsPerBar: 3 | 4;
   compact?: boolean;
   showBothClefs?: boolean;
 }) {
@@ -501,7 +504,6 @@ function PatternPreview({
         const height = showBothClefs ? (compact ? 188 : 188) : (compact ? 136 : 170);
         const rowTop = showBothClefs ? (compact ? 14 : 16) : (compact ? 30 : 36);
         const bassOffsetY = compact ? 68 : 74;
-        const beatsPerBar = 4;
         const bars = 2;
         const horizontalPadding = 14;
         const barWidth = Math.floor((logicalWidth - horizontalPadding * 2) / bars);
@@ -538,14 +540,14 @@ function PatternPreview({
             const trebleStave = new Stave(x, y, barWidth);
             if (bar === 0) {
               trebleStave.addClef("treble");
-              trebleStave.addTimeSignature("4/4");
+              trebleStave.addTimeSignature(`${beatsPerBar}/4`);
             }
             trebleStave.setContext(context).draw();
 
             const bassStave = new Stave(x, y + bassOffsetY, barWidth);
             if (bar === 0) {
               bassStave.addClef("bass");
-              bassStave.addTimeSignature("4/4");
+              bassStave.addTimeSignature(`${beatsPerBar}/4`);
             }
             bassStave.setContext(context).draw();
 
@@ -591,7 +593,7 @@ function PatternPreview({
               midiShift: 0,
             });
 
-            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
             trebleVoice.addTickables(trebleData.notes);
             const trebleWidth = Math.max(40, trebleStave.getNoteEndX() - trebleStave.getNoteStartX() - 4);
             new Formatter().joinVoices([trebleVoice]).format([trebleVoice], trebleWidth);
@@ -599,7 +601,7 @@ function PatternPreview({
             trebleData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
             trebleData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
 
-            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
             bassVoice.addTickables(bassData.notes);
             const bassWidth = Math.max(40, bassStave.getNoteEndX() - bassStave.getNoteStartX() - 4);
             new Formatter().joinVoices([bassVoice]).format([bassVoice], bassWidth);
@@ -611,7 +613,7 @@ function PatternPreview({
             const stave = new Stave(x, y, barWidth);
             if (bar === 0) {
               stave.addClef(clef);
-              stave.addTimeSignature("4/4");
+              stave.addTimeSignature(`${beatsPerBar}/4`);
             }
             stave.setContext(context).draw();
             const resolvedNotes = generateResolvedBarNotesFromChords(
@@ -631,7 +633,7 @@ function PatternPreview({
               clef,
               midiShift: 0,
             });
-            const voice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            const voice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
             voice.addTickables(voiceData.notes);
             const noteWidth = Math.max(40, stave.getNoteEndX() - stave.getNoteStartX() - 4);
             new Formatter().joinVoices([voice]).format([voice], noteWidth);
@@ -667,7 +669,7 @@ function PatternPreview({
       disposed = true;
       observer.disconnect();
     };
-  }, [patternId, hand, compact, showBothClefs]);
+  }, [patternId, hand, beatsPerBar, compact, showBothClefs]);
 
   return (
     <div
@@ -682,12 +684,14 @@ function PatternPreview({
 function PatternPanel({
   hand,
   lang,
+  beatsPerBar,
   onClose,
   currentPatternId,
   onSelect,
 }: {
   hand: "L" | "R";
   lang: "ja" | "en" | "zh";
+  beatsPerBar: 3 | 4;
   onClose: () => void;
   currentPatternId: string;
   onSelect: (id: string) => void;
@@ -716,7 +720,7 @@ function PatternPanel({
             <div className="px-1 text-left text-xs font-bold">
               {lang === "ja" ? pattern.nameJa : pattern.name}
             </div>
-            <PatternPreview patternId={pattern.id} hand={hand} compact showBothClefs />
+            <PatternPreview patternId={pattern.id} hand={hand} beatsPerBar={beatsPerBar} compact showBothClefs />
           </button>
         ))}
       </div>

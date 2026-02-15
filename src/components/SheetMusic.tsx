@@ -7,6 +7,7 @@ import { getPattern } from "@/lib/audio";
 import {
   buildBarNotationModel,
   buildVexVoiceData,
+  extractBarChords,
   generateResolvedBarNotes,
 } from "@/lib/patternRender";
 
@@ -29,15 +30,14 @@ interface SheetMusicProps {
  * @param beatsPerBar 拍子
  */
 function collectBarChordLabels(
-  cells: Progression["cells"],
-  firstBeatIdx: number,
+  chordsInBar: Progression["cells"],
   beatsPerBar: number
 ): Array<{ beatOffset: number; label: string }> {
   const labels: Array<{ beatOffset: number; label: string }> = [];
   let prevLabel = "";
 
   for (let beatOffset = 0; beatOffset < beatsPerBar; beatOffset++) {
-    const cell = cells[firstBeatIdx + beatOffset];
+    const cell = chordsInBar[beatOffset];
     const label = cell && !cell.isRest ? chordDisplayName(cell) : "";
     if (label && label !== prevLabel) {
       labels.push({ beatOffset, label });
@@ -182,7 +182,8 @@ export function SheetMusic({
 
           // コード名を上部に表示（小節内のコード変化に対応）
           const firstBeatIdx = absoluteBarIdx * beatsPerBar;
-          const chordLabels = collectBarChordLabels(cells, firstBeatIdx, beatsPerBar);
+          const chordsInBar = extractBarChords(cells, firstBeatIdx, beatsPerBar);
+          const chordLabels = collectBarChordLabels(chordsInBar, beatsPerBar);
           if (chordLabels.length > 0) {
             context.save();
             context.setFont("Arial", 11, "bold");
@@ -238,9 +239,9 @@ export function SheetMusic({
           });
 
           try {
-            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
             trebleVoice.addTickables(rightVoiceData.notes);
-            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
             bassVoice.addTickables(leftVoiceData.notes);
 
             const sharedNoteStartX = Math.max(trebleStave.getNoteStartX(), bassStave.getNoteStartX());

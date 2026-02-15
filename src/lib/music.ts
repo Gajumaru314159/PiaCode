@@ -78,6 +78,10 @@ export function createEmptyProgression(bars: number = 12): Progression {
  * @param beatsPerBar 拍子
  */
 export function resolveLoopLength(totalCells: number, beatsPerBar: 3 | 4): number {
+  if (beatsPerBar === 3) {
+    // 3拍子は内部4セル（1-2拍+非表示2セル）を1小節として扱う
+    return Math.floor(totalCells / 4) * 3;
+  }
   return Math.floor(totalCells / beatsPerBar) * beatsPerBar;
 }
 
@@ -87,6 +91,27 @@ export function resolveLoopLength(totalCells: number, beatsPerBar: 3 | 4): numbe
  * @param beatsPerBar 拍子
  */
 export function resolveLoopLengthFromCells(cells: ChordToken[], beatsPerBar: 3 | 4): number {
+  if (beatsPerBar === 3) {
+    const barCount = Math.floor(cells.length / 4);
+    if (barCount <= 0) return 0;
+
+    for (let barIdx = barCount - 1; barIdx >= 0; barIdx--) {
+      const base = barIdx * 4;
+      const beat1 = cells[base];
+      const beat2 = cells[base + 1];
+      const beat3 = cells[base + 2];
+      const isRestOnlyBar =
+        (beat1?.isRest ?? true) &&
+        (beat2?.isRest ?? true) &&
+        (beat3?.isRest ?? true);
+      if (!isRestOnlyBar) {
+        return (barIdx + 1) * 3;
+      }
+    }
+
+    return 0;
+  }
+
   const alignedLength = Math.floor(cells.length / beatsPerBar) * beatsPerBar;
   if (alignedLength <= 0) return 0;
 

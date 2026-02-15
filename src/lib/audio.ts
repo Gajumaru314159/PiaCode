@@ -157,6 +157,38 @@ export function resolveBarPattern(input: PatternBarInput, tokens: PatternNoteTok
 }
 
 /**
+ * @brief 指定tick長を超えないようにパターントークン列を切り詰める
+ */
+function trimTokensToBarTicks(
+  tokens: PatternNoteToken[],
+  barTicks: number
+): PatternNoteToken[] {
+  const trimmed: PatternNoteToken[] = [];
+  let cursorTick = 0;
+
+  for (const token of tokens) {
+    const clampedStart = Math.max(0, Math.floor(cursorTick));
+    const tokenDurationTick = Math.max(0, Math.floor(token.durationTick));
+    const rawEnd = clampedStart + tokenDurationTick;
+    cursorTick += tokenDurationTick;
+
+    if (tokenDurationTick <= 0 || clampedStart >= barTicks) continue;
+
+    const clampedEnd = Math.min(barTicks, rawEnd);
+    const trimmedDurationTick = clampedEnd - clampedStart;
+    if (trimmedDurationTick <= 0) continue;
+
+    if (trimmedDurationTick === tokenDurationTick) {
+      trimmed.push(token);
+    } else {
+      trimmed.push({ ...token, durationTick: trimmedDurationTick });
+    }
+  }
+
+  return trimmed;
+}
+
+/**
  * @brief PatternDef生成ヘルパー
  */
 function definePattern(
@@ -165,7 +197,11 @@ function definePattern(
   return {
     ...base,
     generateBar(input) {
-      const tokens = base.notesByHand[input.hand] || [];
+      const rawTokens = base.notesByHand[input.hand] || [];
+      const tokens =
+        input.beatsPerBar === 3
+          ? trimTokensToBarTicks(rawTokens, 3 * TICKS_PER_BEAT)
+          : rawTokens;
       return resolveBarPattern(input, tokens);
     },
   };

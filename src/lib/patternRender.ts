@@ -83,6 +83,15 @@ export function extractBarChords(
   barStartBeat: number,
   beatsPerBar: 3 | 4
 ): ChordToken[] {
+  if (beatsPerBar === 3) {
+    const barIdx = Math.floor(barStartBeat / 3);
+    const base = barIdx * 4;
+    const beat1 = cells[base] ?? REST_CHORD;
+    const beat2 = cells[base + 1] ?? REST_CHORD;
+    const beat3 = cells[base + 2] ?? REST_CHORD;
+    return [beat1, beat2, beat3];
+  }
+
   const chords: ChordToken[] = [];
   for (let i = 0; i < beatsPerBar; i++) {
     chords.push(cells[barStartBeat + i] ?? REST_CHORD);

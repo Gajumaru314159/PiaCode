@@ -4,7 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { getDiatonicRoots, ALL_PITCH_CLASSES, MATRIX_QUALITIES, chordDisplayName, createChordToken, createRestToken, transposeProgression, chordToMidiNotes } from "@/lib/music";
 import { t } from "@/lib/i18n";
-import { ChordQuality, PitchClass } from "@/types/music";
+import { ChordQuality, ChordToken, PitchClass } from "@/types/music";
 import { SavePanel } from "./SavePanel";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -139,7 +139,7 @@ export function EditTab() {
   /**
    * @brief Matrixクリックで入力するコードを1拍分だけ試聴する
    */
-  const previewMatrixChord = useCallback((cell: ReturnType<typeof createChordToken>) => {
+  const previewMatrixChord = useCallback((cell: ChordToken) => {
     if (cell.isRest || !cell.root) return;
     const ctx = getMatrixAudioContext();
     const notes = chordToMidiNotes(cell, 4);
@@ -165,52 +165,81 @@ export function EditTab() {
   }, [getMatrixAudioContext, options.tempo]);
 
   /**
+   * @brief 直前拍と同一コードのセルを生成する（先頭は休符）
+   */
+  const createSimileFromPrevious = useCallback((index: number): ChordToken => {
+    const prev = index > 0 ? progression.cells[index - 1] : null;
+    if (prev && !prev.isRest && prev.root && prev.quality) {
+      return { ...prev };
+    }
+    return createRestToken();
+  }, [progression.cells]);
+
+  /**
+   * @brief カーソル位置へ入力し、必要に応じて3拍子用補正を適用する
+   */
+  const commitCellInput = useCallback((inputCell: ChordToken): ChordToken => {
+    const cursor = progression.cursor;
+    const updates: Array<{ index: number; cell: ChordToken }> = [];
+    let appliedCell = inputCell;
+    let nextCursor = cursor + 1;
+
+    if (progression.beatsPerBar === 3) {
+      const beatInBlock = cursor % 4;
+      if (beatInBlock === 2) {
+        // 3拍目入力は自動的にSimileとして扱う
+        appliedCell = createSimileFromPrevious(cursor);
+        updates.push({ index: cursor, cell: appliedCell });
+        // 4拍目は未使用セルとして休符にそろえる
+        updates.push({ index: cursor + 1, cell: createRestToken() });
+        nextCursor = cursor + 2;
+      } else if (beatInBlock === 3) {
+        // 4拍目は未使用セルとして入力を受け付けずスキップ
+        appliedCell = createRestToken();
+        updates.push({ index: cursor, cell: appliedCell });
+        nextCursor = cursor + 1;
+      } else {
+        updates.push({ index: cursor, cell: inputCell });
+      }
+    } else {
+      updates.push({ index: cursor, cell: inputCell });
+    }
+
+    const maxIndex = Math.max(nextCursor, ...updates.map((u) => u.index));
+    if (maxIndex >= progression.cells.length) {
+      dispatch({ type: "EXPAND_CELLS", minLength: maxIndex + 1 });
+    }
+
+    for (const update of updates) {
+      dispatch({ type: "SET_CELL", index: update.index, cell: update.cell });
+    }
+    dispatch({ type: "SET_CURSOR", cursor: nextCursor });
+    return appliedCell;
+  }, [progression.cursor, progression.beatsPerBar, progression.cells.length, createSimileFromPrevious, dispatch]);
+
+  /**
    * @brief コードセルにコードを入力する
    */
   const inputChord = useCallback((root: PitchClass, quality: ChordQuality) => {
-    const cell = createChordToken(root, quality);
-    previewMatrixChord(cell);
-    const cursor = progression.cursor;
-    dispatch({ type: "SET_CELL", index: cursor, cell });
-    // カーソルを1つ進める
-    const nextCursor = cursor + 1;
-    // 末尾に達したらセルを拡張
-    if (nextCursor >= progression.cells.length) {
-      dispatch({ type: "EXPAND_CELLS", minLength: nextCursor + 1 });
+    const applied = commitCellInput(createChordToken(root, quality));
+    if (!applied.isRest && applied.root && applied.quality) {
+      previewMatrixChord(applied);
     }
-    dispatch({ type: "SET_CURSOR", cursor: nextCursor });
-  }, [progression.cursor, progression.cells.length, dispatch, previewMatrixChord]);
+  }, [commitCellInput, previewMatrixChord]);
 
   /**
    * @brief 休符を入力する
    */
   const inputRest = useCallback(() => {
-    const cursor = progression.cursor;
-    dispatch({ type: "SET_CELL", index: cursor, cell: createRestToken() });
-    const nextCursor = cursor + 1;
-    if (nextCursor >= progression.cells.length) {
-      dispatch({ type: "EXPAND_CELLS", minLength: nextCursor + 1 });
-    }
-    dispatch({ type: "SET_CURSOR", cursor: nextCursor });
-  }, [progression.cursor, progression.cells.length, dispatch]);
+    commitCellInput(createRestToken());
+  }, [commitCellInput]);
 
   /**
    * @brief Simile入力（直前拍と同一コード。先頭は休符）
    */
   const inputSimile = useCallback(() => {
-    const cursor = progression.cursor;
-    const prev = cursor > 0 ? progression.cells[cursor - 1] : null;
-    const cell = (prev && !prev.isRest && prev.root && prev.quality)
-      ? createChordToken(prev.root, prev.quality)
-      : createRestToken();
-
-    dispatch({ type: "SET_CELL", index: cursor, cell });
-    const nextCursor = cursor + 1;
-    if (nextCursor >= progression.cells.length) {
-      dispatch({ type: "EXPAND_CELLS", minLength: nextCursor + 1 });
-    }
-    dispatch({ type: "SET_CURSOR", cursor: nextCursor });
-  }, [progression.cursor, progression.cells, progression.cells.length, dispatch]);
+    commitCellInput(createSimileFromPrevious(progression.cursor));
+  }, [commitCellInput, createSimileFromPrevious, progression.cursor]);
 
   /**
    * @brief キーを前後に切り替える
@@ -578,20 +607,22 @@ function ChordGrid() {
     }
     getAudioContext();
 
-    const visibleCells = beatsPerBar === 3 ? 6 : 8;
+    const playbackOffsets = beatsPerBar === 3
+      ? [0, 1, 2, 4, 5, 6]
+      : [0, 1, 2, 3, 4, 5, 6, 7];
     const tempo = state.options.tempo;
     const beatDuration = 60 / tempo;
     let beatIdx = 0;
     playingRowRef.current = rowStart;
 
     const scheduleNext = () => {
-      if (beatIdx >= visibleCells) {
+      if (beatIdx >= playbackOffsets.length) {
         if (playTimerRef.current) clearInterval(playTimerRef.current);
         playTimerRef.current = null;
         playingRowRef.current = null;
         return;
       }
-      const cellIdx = rowStart + beatIdx;
+      const cellIdx = rowStart + playbackOffsets[beatIdx];
       const cell = cells[cellIdx];
       if (cell && !cell.isRest && cell.root) {
         const notes = chordToMidiNotes(cell, 4);
@@ -604,9 +635,13 @@ function ChordGrid() {
     playTimerRef.current = window.setInterval(scheduleNext, beatDuration * 1000);
   }, [cells, beatsPerBar, state.options.tempo, getAudioContext, triggerMidiNotes]);
 
-  // 8セル1段
+  // 8セル1段（3拍子時は内部4セル×2小節）
   const cellsPerRow = 8;
-  const visibleCellsPerRow = beatsPerBar === 3 ? 6 : 8;
+  const visibleOffsets = beatsPerBar === 3
+    ? [0, 1, 2, 4, 5, 6]
+    : [0, 1, 2, 3, 4, 5, 6, 7];
+  const visibleCellsPerRow = visibleOffsets.length;
+  const gridShift = beatsPerBar === 3 ? 1 : 0;
   const rows: number[] = [];
   for (let i = 0; i < cells.length; i += cellsPerRow) {
     rows.push(i);
@@ -615,10 +650,8 @@ function ChordGrid() {
   /**
    * @brief 同段で直前拍と同一コードかどうか判定（Simile表示用）
    */
-  const isSamileDisplay = (rowStart: number, colInRow: number): boolean => {
-    if (colInRow === 0) return false;
-    const idx = rowStart + colInRow;
-    const prevIdx = rowStart + colInRow - 1;
+  const isSamileDisplay = (idx: number, prevIdx: number | null): boolean => {
+    if (prevIdx === null) return false;
     if (idx >= cells.length || prevIdx < 0) return false;
     const cell = cells[idx];
     const prev = cells[prevIdx];
@@ -630,22 +663,27 @@ function ChordGrid() {
     <div className="flex-1 overflow-y-auto overflow-x-hidden pb-4">
       <div>
         {rows.map((rowStart) => (
+          (() => {
+            const rowBarNumber = beatsPerBar === 3
+              ? Math.floor(rowStart / 4) + 1
+              : Math.floor(rowStart / beatsPerBar) + 1;
+            return (
           <GridRow
             key={rowStart}
             overlays={[
               {
                 key: `bar-${rowStart}`,
-                start: 2,
-                content: Math.floor(rowStart / beatsPerBar) + 1,
+                start: 2 + gridShift,
+                content: rowBarNumber,
                 asButton: true,
-                ariaLabel: `小節${Math.floor(rowStart / beatsPerBar) + 1}から再生`,
+                ariaLabel: `小節${rowBarNumber}から再生`,
                 onClick: () => playRow(rowStart),
                 className: "flex items-center justify-center border border-black text-sm font-bold hover:opacity-70",
                 style: { color: "#CC4444" },
               },
               ...Array.from({ length: visibleCellsPerRow }, (_, col) => {
-                const idx = rowStart + col;
-                const start = 3 + col;
+                const idx = rowStart + visibleOffsets[col];
+                const start = 3 + gridShift + col;
                 if (idx >= cells.length) {
                   return {
                     key: `empty-${rowStart}-${col}`,
@@ -656,7 +694,8 @@ function ChordGrid() {
                 }
                 const cell = cells[idx];
                 const isCursor = idx === cursor;
-                const showSimile = isSamileDisplay(rowStart, col);
+                const prevIdx = col > 0 ? rowStart + visibleOffsets[col - 1] : null;
+                const showSimile = isSamileDisplay(idx, prevIdx);
                 let display = "";
                 if (cell.isRest) {
                   display = "";
@@ -681,6 +720,8 @@ function ChordGrid() {
               }),
             ]}
           />
+            );
+          })()
         ))}
         {/* 自動調整したい */}
         <GridRow />
