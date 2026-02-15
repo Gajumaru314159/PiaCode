@@ -171,257 +171,245 @@ function definePattern(
   };
 }
 
-const quarterPulsePattern = definePattern({
-  id: "manual.quarterPulse",
-  name: "Quarter Chords + Half Bass",
-  nameJa: "4分和音+2分ベース",
-  notesByHand: {
-    // *   *   *   *   
-    // *       *        
-    R: [
-      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
-    ],
-    L: [
-      N(24, 0, [T(0, -1), T(0, -2)]),
-      N(24, 2, [T(0, -1), T(0, -2)]),
-    ],
-  },
-});
-
-const eighthBassPulsePattern = definePattern({
-  id: "manual.eighthBassPulse",
-  name: "Quarter Chords + Eighth Bass",
-  nameJa: "4分和音+8分ベース",
-  notesByHand: {
-    // *   *   *   *   
-    // * * * * * * * *  
-    R: [
-      N(12, 0, [T(1, 0), T(2, 0), T(3, 0)]),
-      N(12, 1, [T(1, 0), T(2, 0), T(3, 0)]),
-      N(12, 2, [T(1, 0), T(2, 0), T(3, 0)]),
-      N(12, 3, [T(1, 0), T(2, 0), T(3, 0)]),
-    ],
-    L: [
-      N(6, 0, [T(0, -2)]),
-      N(6, 0, [T(0, -1)]),
-      N(6, 1, [T(0, -2)]),
-      N(6, 1, [T(0, -1)]),
-      N(6, 2, [T(0, -2)]),
-      N(6, 2, [T(0, -1)]),
-      N(6, 3, [T(0, -2)]),
-      N(6, 3, [T(0, -1)]),
-    ],
-  },
-});
-
-const halfChordRisePattern = definePattern({
-  id: "manual.halfChordRise",
-  name: "Half Chords + Rising Bass",
-  nameJa: "2分和音+上行ベース",
-  notesByHand: {
-    // *       *       
-    // * * * * * * * *  
-    R: [
-      N(24, 0, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(24, 2, [T(0, 0), T(1, 0), T(2, 0)]),
-    ],
-    L: [
-      N(6, 0, [T(0, -2)]),
-      N(6, 0, [T(1, -2)]),
-      N(6, 1, [T(2, -2)]),
-      N(6, 1, [T(3, -2)]),
-      N(6, 2, [T(0, -2)]),
-      N(6, 2, [T(1, -2)]),
-      N(6, 3, [T(2, -2)]),
-      N(6, 3, [T(3, -2)]),
-    ],
-  },
-});
-
-/**
- * @brief 休符入りオフビート（右手裏打ち + 左手ロングトーン）
- */
-const restOffbeatCompPattern = definePattern({
-  id: "manual.restOffbeatComp",
-  name: "Offbeat Comp + Dotted Bass",
-  nameJa: "裏打ち+付点ベース",
-  notesByHand: {
-    // - * - * - * - *
-    // *   -   *   -
-    R: [
-      R(6),
-      N(6, 0, [T(1, 0), T(2, 0), T(3, 0)]),
-      R(6),
-      N(6, 1, [T(1, 0), T(2, 0), T(3, 0)]),
-      R(6),
-      N(6, 2, [T(1, 0), T(2, 0), T(3, 0)]),
-      R(6),
-      N(6, 3, [T(1, 0), T(2, 0), T(3, 0)]),
-    ],
-    L: [
-      N(18, 0, [T(0, -2), T(0, -1)]),
-      R(6),
-      N(18, 2, [T(0, -2), T(0, -1)]),
-      R(6),
-    ],
-  },
-});
-
-/**
- * @brief 休符入りコール&レスポンス（右手断続 + 左手単音）
- */
-const restCallResponsePattern = definePattern({
-  id: "manual.restCallResponse",
-  name: "Call & Response Stabs",
-  nameJa: "コール&レスポンス刻み",
-  notesByHand: {
-    // *   -   * - * -
-    // * - * - * - * -
-    R: [
-      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
-      R(12),
-      N(6, 2, [T(0, 0), T(1, 0), T(2, 0)]),
-      R(6),
-      N(6, 3, [T(0, 0), T(1, 0), T(2, 0)]),
-      R(6),
-    ],
-    L: [
-      N(6, 0, [T(0, -2)]),
-      R(6),
-      N(6, 1, [T(0, -2)]),
-      R(6),
-      N(6, 2, [T(0, -2)]),
-      R(6),
-      N(6, 3, [T(0, -2)]),
-      R(6),
-    ],
-  },
-});
-
-/**
- * @brief 画像1（右手4分和音 + 左手 付点4分/8分）
- */
-const imageChordDotsBassPattern = definePattern({
-  id: "manual.imageChordDotsBass",
-  name: "Quarter Chords + Dotted Bass",
-  nameJa: "4分和音+付点8分ベース",
-  notesByHand: {
-    // *   *   *   *   
-    // *     * *     *  
-    R: [
-      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
-    ],
-    L: [
-      N(18, 0, [T(0, -2),T(0, -1)]),
-      N(6, 1, [T(0, -2),T(0, -1)]),
-      N(18, 2, [T(0, -2),T(0, -1)]),
-      N(6, 3, [T(0, -2),T(0, -1)]),
-    ],
-  },
-});
-
-/**
- * @brief 画像3（右手フレーズ + 左手4分交互）
- */
-const imagePhraseAltBassPattern = definePattern({
-  id: "manual.imagePhraseAltBass",
-  name: "Eighth Phrase + Quarter Chords",
-  nameJa: "8分フレーズ+4分和音",
-  notesByHand: {
-    R: [
-      N(6, 0, [T(3, 0), T(2, 0)]),
-      N(6, 0, [T(1, 0)]),
-      N(6, 1, [T(2, 0)]),
-      N(6, 1, [T(3, 0), T(2, 0)]),
-      N(6, 2, [T(4, 0), T(3, 0)]),
-      N(6, 2, [T(2, 0)]),
-      N(6, 3, [T(3, 0)]),
-      N(6, 3, [T(4, 0), T(3, 0)]),
-    ],
-    L: [
-      N(12, 0, [T(0, -1), T(1, -1), T(2, -1)]),
-      N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
-      N(12, 2, [T(0, -1), T(1, -1), T(2, -1)]),
-      N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
-    ],
-  },
-});
-
-/**
- * @brief 画像4（右手16分アクセント + 左手シンコペーション）
- */
-const imageAccentSyncPattern = definePattern({
-  id: "manual.imageAccentSync",
-  name: "Sixteenth Accent Syncopation",
-  nameJa: "16分アクセント+シンコペ",
-  notesByHand: {
-    R: [
-      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(9, 1, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(3, 1, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(9, 3, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(3, 3, [T(0, 0), T(1, 0), T(2, 0)]),
-    ],
-    L: [
-      N(18, 0, [T(0, -2),T(0, -1)]),
-      N(6, 1, [T(0, -2),T(0, -1)]),
-      N(6, 2, [T(0, -2),T(0, -1)]),
-      N(12, 2, [T(0, -2),T(0, -1)]),
-      N(6, 3, [T(0, -2),T(0, -1)]),
-    ],
-  },
-});
-
-/**
- * @brief ラグタイム
- */
-const ragtimePattern = definePattern({
-  id: "manual.ragtime",
-  name: "Ragtime",
-  nameJa: "ラグタイム",
-  notesByHand: {
-    R: [
-      N(9, 0, [T(3, 0), T(2, 0)]),
-      N(3, 0, [T(1, 0)]),
-      N(9, 1, [T(2, 0)]),
-      N(3, 1, [T(3, 0), T(2, 0)]),
-      R(9),
-      N(3, 2, [T(2, 0)]),
-      N(9, 3, [T(3, 0), T(2, 0)]),
-      N(3, 3, [T(2, 0)]),
-    ],
-    L: [
-      N(12, 0, [T(0, -2)]),
-      N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
-      N(12, 2, [T(0, -2)]),
-      N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
-    ],
-  },
-});
 
 /**
  * @brief 利用可能なパターン一覧
  */
 export const PATTERNS: PatternDef[] = [
-  quarterPulsePattern,
-  eighthBassPulsePattern,
-  halfChordRisePattern,
-  restOffbeatCompPattern,
-  restCallResponsePattern,
-  imageChordDotsBassPattern,
-  imagePhraseAltBassPattern,
-  imageAccentSyncPattern,
-  ragtimePattern,
+  definePattern({
+    id: "manual.quarterPulse",
+    name: "Quarter Chords + Half Bass",
+    nameJa: "4分和音+2分ベース",
+    notesByHand: {
+      // *   *   *   *   
+      // *       *        
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(24, 0, [T(0, -1), T(0, -2)]),
+        N(24, 2, [T(0, -1), T(0, -2)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.eighthBassPulse",
+    name: "Quarter Chords + Eighth Bass",
+    nameJa: "4分和音+8分ベース",
+    notesByHand: {
+      // *   *   *   *   
+      // * * * * * * * *  
+      R: [
+        N(12, 0, [T(1, 0), T(2, 0), T(3, 0)]),
+        N(12, 1, [T(1, 0), T(2, 0), T(3, 0)]),
+        N(12, 2, [T(1, 0), T(2, 0), T(3, 0)]),
+        N(12, 3, [T(1, 0), T(2, 0), T(3, 0)]),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        N(6, 0, [T(0, -1)]),
+        N(6, 1, [T(0, -2)]),
+        N(6, 1, [T(0, -1)]),
+        N(6, 2, [T(0, -2)]),
+        N(6, 2, [T(0, -1)]),
+        N(6, 3, [T(0, -2)]),
+        N(6, 3, [T(0, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.halfChordRise",
+    name: "Half Chords + Rising Bass",
+    nameJa: "2分和音+上行ベース",
+    notesByHand: {
+      // *       *       
+      // * * * * * * * *  
+      R: [
+        N(24, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(24, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        N(6, 0, [T(1, -2)]),
+        N(6, 1, [T(2, -2)]),
+        N(6, 1, [T(3, -2)]),
+        N(6, 2, [T(0, -2)]),
+        N(6, 2, [T(1, -2)]),
+        N(6, 3, [T(2, -2)]),
+        N(6, 3, [T(3, -2)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.halfChordRiseDown",
+    name: "Half Chords + Rising & Falling Bass",
+    nameJa: "2分和音+上行&下行ベース",
+    notesByHand: {
+      // *       *       
+      // * * * * * * * *  
+      R: [
+        N(24, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(24, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        N(6, 0, [T(1, -2)]),
+        N(6, 1, [T(2, -2)]),
+        N(6, 1, [T(3, -2)]),
+        N(6, 2, [T(4, -2)]),
+        N(6, 2, [T(3, -2)]),
+        N(6, 3, [T(2, -2)]),
+        N(6, 3, [T(1, -2)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.restOffbeatComp",
+    name: "Offbeat Comp + Dotted Bass",
+    nameJa: "裏打ち+付点ベース",
+    notesByHand: {
+      // - * - * - * - *
+      // *   -   *   -
+      R: [
+        R(6),
+        N(6, 0, [T(1, 0), T(2, 0), T(3, 0)]),
+        R(6),
+        N(6, 1, [T(1, 0), T(2, 0), T(3, 0)]),
+        R(6),
+        N(6, 2, [T(1, 0), T(2, 0), T(3, 0)]),
+        R(6),
+        N(6, 3, [T(1, 0), T(2, 0), T(3, 0)]),
+      ],
+      L: [
+        N(18, 0, [T(0, -2), T(0, -1)]),
+        R(6),
+        N(18, 2, [T(0, -2), T(0, -1)]),
+        R(6),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.restCallResponse",
+    name: "Call & Response Stabs",
+    nameJa: "コール&レスポンス刻み",
+    notesByHand: {
+      // *   -   * - * -
+      // * - * - * - * -
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        R(12),
+        N(6, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        R(6),
+        N(6, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+        R(6),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        R(6),
+        N(6, 1, [T(0, -2)]),
+        R(6),
+        N(6, 2, [T(0, -2)]),
+        R(6),
+        N(6, 3, [T(0, -2)]),
+        R(6),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.imageChordDotsBass",
+    name: "Quarter Chords + Dotted Bass",
+    nameJa: "4分和音+付点8分ベース",
+    notesByHand: {
+      // *   *   *   *   
+      // *     * *     *  
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(18, 0, [T(0, -2),T(0, -1)]),
+        N(6, 1, [T(0, -2),T(0, -1)]),
+        N(18, 2, [T(0, -2),T(0, -1)]),
+        N(6, 3, [T(0, -2),T(0, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.imagePhraseAltBass",
+    name: "Eighth Phrase + Quarter Chords",
+    nameJa: "8分フレーズ+4分和音",
+    notesByHand: {
+      R: [
+        N(6, 0, [T(3, 0), T(2, 0)]),
+        N(6, 0, [T(1, 0)]),
+        N(6, 1, [T(2, 0)]),
+        N(6, 1, [T(3, 0), T(2, 0)]),
+        N(6, 2, [T(4, 0), T(3, 0)]),
+        N(6, 2, [T(2, 0)]),
+        N(6, 3, [T(3, 0)]),
+        N(6, 3, [T(4, 0), T(3, 0)]),
+      ],
+      L: [
+        N(12, 0, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 2, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.imageAccentSync",
+    name: "Sixteenth Accent Syncopation",
+    nameJa: "16分アクセント+シンコペ",
+    notesByHand: {
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(9, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(3, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(9, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(3, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(18, 0, [T(0, -2),T(0, -1)]),
+        N(6, 1, [T(0, -2),T(0, -1)]),
+        N(6, 2, [T(0, -2),T(0, -1)]),
+        N(12, 2, [T(0, -2),T(0, -1)]),
+        N(6, 3, [T(0, -2),T(0, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.ragtime",
+    name: "Ragtime",
+    nameJa: "ラグタイム",
+    notesByHand: {
+      R: [
+        N(9, 0, [T(3, 0), T(2, 0)]),
+        N(3, 0, [T(1, 0)]),
+        N(9, 1, [T(2, 0)]),
+        N(3, 1, [T(3, 0), T(2, 0)]),
+        R(9),
+        N(3, 2, [T(2, 0)]),
+        N(9, 3, [T(3, 0), T(2, 0)]),
+        N(3, 3, [T(2, 0)]),
+      ],
+      L: [
+        N(12, 0, [T(0, -2)]),
+        N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 2, [T(0, -2)]),
+        N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
+      ],
+    },
+  })
 ];
 
-const DEFAULT_PATTERN = quarterPulsePattern;
+const DEFAULT_PATTERN = PATTERNS[0];
 
 /**
  * @brief パターンIDからパターン定義を取得する
