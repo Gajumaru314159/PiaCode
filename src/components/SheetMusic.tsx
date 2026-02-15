@@ -23,6 +23,32 @@ interface SheetMusicProps {
 }
 
 /**
+ * @brief 小節内のコード表示イベント（表示拍とラベル）を抽出する
+ * @param cells 全コードセル
+ * @param firstBeatIdx 対象小節の先頭拍インデックス
+ * @param beatsPerBar 拍子
+ */
+function collectBarChordLabels(
+  cells: Progression["cells"],
+  firstBeatIdx: number,
+  beatsPerBar: number
+): Array<{ beatOffset: number; label: string }> {
+  const labels: Array<{ beatOffset: number; label: string }> = [];
+  let prevLabel = "";
+
+  for (let beatOffset = 0; beatOffset < beatsPerBar; beatOffset++) {
+    const cell = cells[firstBeatIdx + beatOffset];
+    const label = cell && !cell.isRest ? chordDisplayName(cell) : "";
+    if (label && label !== prevLabel) {
+      labels.push({ beatOffset, label });
+    }
+    prevLabel = label;
+  }
+
+  return labels;
+}
+
+/**
  * @brief VexFlowを使った楽譜表示コンポーネント
  */
 export function SheetMusic({
@@ -154,17 +180,22 @@ export function SheetMusic({
             context.restore();
           }
 
-          // コード名を上部に表示
+          // コード名を上部に表示（小節内のコード変化に対応）
           const firstBeatIdx = absoluteBarIdx * beatsPerBar;
-          const firstCell = cells[firstBeatIdx];
-          if (firstCell && !firstCell.isRest) {
+          const chordLabels = collectBarChordLabels(cells, firstBeatIdx, beatsPerBar);
+          if (chordLabels.length > 0) {
             context.save();
             context.setFont("Arial", 11, "bold");
             context.setFillStyle("#000");
-            const chordName = chordDisplayName(firstCell);
-            if (chordName) {
-              context.fillText(chordName, x + 30, y - 8);
-            }
+            const labelStartX = x + 30;
+            const labelEndX = x + Math.max(barWidth - 20, 31);
+            const labelWidth = labelEndX - labelStartX;
+
+            chordLabels.forEach(({ beatOffset, label }) => {
+              const ratio = beatsPerBar > 0 ? beatOffset / beatsPerBar : 0;
+              const labelX = labelStartX + labelWidth * ratio;
+              context.fillText(label, labelX, y - 8);
+            });
             context.restore();
           }
 
