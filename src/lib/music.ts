@@ -128,6 +128,15 @@ export function matrixKeyToPitchClass(matrixKey: number): PitchClass {
 }
 
 /**
+ * @brief matrixKeyに応じた臨時記号の優先表記（sharp/flat）を返す
+ * @param matrixKey キーインデックス
+ * @returns 臨時記号の優先表記
+ */
+export function getAccidentalPreferenceForMatrixKey(matrixKey: number): AccidentalPreference {
+  return getAccidentalPreferenceForKey(matrixKeyToPitchClass(matrixKey));
+}
+
+/**
  * @brief コードトークンの表示名を返す
  * @param token コードトークン
  * @returns 表示文字列
@@ -306,9 +315,12 @@ export function chordToMidiNotes(token: ChordToken, octave: number = 4): number[
 /**
  * @brief MIDIノート番号を音名文字列に変換する（VexFlow形式）
  * @param midi MIDIノート番号
+ * @param preference 臨時記号の優先表記
  */
-export function midiToVexKey(midi: number): string {
-  const noteNames = ["c", "c#", "d", "eb", "e", "f", "f#", "g", "ab", "a", "bb", "b"];
+export function midiToVexKey(midi: number, preference: AccidentalPreference = "flat"): string {
+  const noteNames = preference === "sharp"
+    ? ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
+    : ["c", "db", "d", "eb", "e", "f", "gb", "g", "ab", "a", "bb", "b"];
   const octave = Math.floor(midi / 12) - 1;
   const note = noteNames[midi % 12];
   return `${note}/${octave}`;

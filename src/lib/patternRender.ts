@@ -1,6 +1,6 @@
 import { ChordToken, Hand, PlaybackEvent } from "@/types/music";
 import { PatternDef, ResolvedPatternNote, TICKS_PER_BEAT } from "./audio";
-import { midiToVexKey } from "./music";
+import { midiToVexKey, type AccidentalPreference } from "./music";
 
 /**
  * @brief 譜面用の連符種別
@@ -199,6 +199,7 @@ export function buildVexVoiceData(params: {
   model: BarNotationModel;
   clef: "treble" | "bass";
   midiShift: number;
+  accidentalPreference?: AccidentalPreference;
 }): VexVoiceData {
   const {
     StaveNoteClass,
@@ -208,6 +209,7 @@ export function buildVexVoiceData(params: {
     model,
     clef,
     midiShift,
+    accidentalPreference = "flat",
   } = params;
 
   const restKey = clef === "bass" ? "d/3" : "b/4";
@@ -215,7 +217,7 @@ export function buildVexVoiceData(params: {
   const notes: any[] = model.atoms.map((atom) => {
     const keys = atom.isRest
       ? [restKey]
-      : atom.midiNotes.map((midi) => midiToVexKey(midi + midiShift));
+      : atom.midiNotes.map((midi) => midiToVexKey(midi + midiShift, accidentalPreference));
     const duration = atom.isRest ? `${atom.duration}r` : atom.duration;
     const note = new StaveNoteClass({ keys, duration, dots: atom.dots, clef });
     for (let i = 0; i < atom.dots; i++) {

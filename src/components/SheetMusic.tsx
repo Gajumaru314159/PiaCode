@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Progression } from "@/types/music";
-import { chordDisplayNameForKey, matrixKeyToPitchClass } from "@/lib/music";
+import { chordDisplayNameForKey, getAccidentalPreferenceForKey, matrixKeyToPitchClass } from "@/lib/music";
 import { getPattern } from "@/lib/audio";
 import {
   buildBarNotationModel,
@@ -134,6 +134,7 @@ export function SheetMusic({
         const leftPattern = getPattern(leftPatternId);
         const rightPattern = getPattern(rightPatternId);
         const keyRoot = matrixKeyToPitchClass(matrixKey);
+        const accidentalPreference = getAccidentalPreferenceForKey(keyRoot);
         const keySignature = toVexKeySignature(keyRoot);
 
         const sidePadding = 20;
@@ -262,6 +263,7 @@ export function SheetMusic({
             model: rightModel,
             clef: "treble",
             midiShift: 0,
+            accidentalPreference,
           });
 
           const leftVoiceData = buildVexVoiceData({
@@ -272,6 +274,7 @@ export function SheetMusic({
             model: leftModel,
             clef: "bass",
             midiShift: 0,
+            accidentalPreference,
           });
 
           try {
