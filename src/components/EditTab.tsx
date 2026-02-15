@@ -207,7 +207,7 @@ export function EditTab() {
       <KeySignatureDisplay keyRoot={keyRoot} />
 
       {/* 11列グリッド上のマトリックス入力 */}
-      <div className="shrink-0 mt-2 overflow-x-hidden overflow-y-hidden">
+      <div className="shrink-0 mt-2 overflow-x-hidden overflow-y-hidden" style={{ paddingBottom: "1px" }}>
         {/* 上段ルート行（◀ + 7ルート + ▶） */}
         <GridRow
           overlays={[
