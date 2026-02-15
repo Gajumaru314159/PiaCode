@@ -9,7 +9,7 @@ import { SavePanel } from "./SavePanel";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 const GRID_COLS = 11;
-const GRID_UNIT = "9.0909vw";
+const GRID_UNIT = "36px";
 const GRID_LIGHT_BORDER = "rgba(120, 170, 220, 0.15)";
 const GRID_CELL_STYLE: React.CSSProperties = {
   width: `calc(${GRID_UNIT} + 1px)`,
@@ -23,6 +23,8 @@ const GRID_ROW_STYLE: React.CSSProperties = {
   display: "flex",
   width: `calc(${GRID_UNIT} * ${GRID_COLS})`,
   height: GRID_UNIT,
+  marginLeft: "auto",
+  marginRight: "auto",
 };
 const GRID_OVERLAY_BASE_STYLE: React.CSSProperties = {
   position: "absolute",
@@ -663,7 +665,10 @@ function ChordGrid() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden pb-4">
+    <div
+      className="flex-1 overflow-y-auto overflow-x-hidden pb-4"
+      style={{ scrollbarGutter: "stable both-edges" }}
+    >
       <div>
         {rows.map((rowStart) => (
           (() => {
