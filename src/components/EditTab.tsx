@@ -141,6 +141,24 @@ export function EditTab() {
   }, [progression.cursor, progression.cells.length, dispatch]);
 
   /**
+   * @brief Simile入力（直前拍と同一コード。先頭は休符）
+   */
+  const inputSimile = useCallback(() => {
+    const cursor = progression.cursor;
+    const prev = cursor > 0 ? progression.cells[cursor - 1] : null;
+    const cell = (prev && !prev.isRest && prev.root && prev.quality)
+      ? createChordToken(prev.root, prev.quality)
+      : createRestToken();
+
+    dispatch({ type: "SET_CELL", index: cursor, cell });
+    const nextCursor = cursor + 1;
+    if (nextCursor >= progression.cells.length) {
+      dispatch({ type: "EXPAND_CELLS", minLength: nextCursor + 1 });
+    }
+    dispatch({ type: "SET_CURSOR", cursor: nextCursor });
+  }, [progression.cursor, progression.cells, progression.cells.length, dispatch]);
+
+  /**
    * @brief キーを前後に切り替える
    */
   const shiftKey = useCallback((delta: number) => {
@@ -250,7 +268,7 @@ export function EditTab() {
           />
         ))}
 
-        {/* 下段ルート行（休符 + 7ルート + 装飾） */}
+        {/* 下段ルート行（休符 + 7ルート + Simile） */}
         <GridRow
           overlays={[
             {
@@ -269,9 +287,12 @@ export function EditTab() {
               className: "flex items-center justify-center text-sm bg-black text-white opacity-80",
             })),
             {
-              key: "trash-icon",
+              key: "simile-input",
               start: 10,
-              content: null,
+              content: "𝄍",
+              asButton: true,
+              ariaLabel: t("edit.simile", lang),
+              onClick: inputSimile,
               className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
           ]}
