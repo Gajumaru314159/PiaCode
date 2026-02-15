@@ -47,7 +47,7 @@ export function AppShell() {
                 backgroundColor: tab.color,
                 opacity: isActive ? 1 : 0.82,
                 minHeight: 0,
-                fontSize: "1rem",
+                fontSize: "0.9rem",
                 fontWeight: 700,
                 transform: isActive ? "translateY(-1px)" : "translateY(-6px)",
                 borderBottom: "1px solid rgba(0, 0, 0, 0.2)",
