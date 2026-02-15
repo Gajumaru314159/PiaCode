@@ -215,7 +215,7 @@ export function OptionTab() {
           <span className="text-xs">{t("option.rightHand", lang)}</span>
           <button
             onClick={() => { setPatternHand("R"); setShowPatternPanel(true); }}
-            className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
+            className="block w-full mt-1 p-1 box-frame"
             aria-label="右手パターン選択"
           >
             <div className="px-1 text-left text-xs font-bold">
@@ -230,7 +230,7 @@ export function OptionTab() {
           <span className="text-xs">{t("option.leftHand", lang)}</span>
           <button
             onClick={() => { setPatternHand("L"); setShowPatternPanel(true); }}
-            className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
+            className="block w-full mt-1 p-1 box-frame"
             aria-label="左手パターン選択"
           >
             <div className="px-1 text-left text-xs font-bold">
@@ -260,7 +260,7 @@ export function OptionTab() {
           />
           <button
             onClick={handleTapTempo}
-            className="px-4 py-1 border border-[var(--border-color)] bg-white text-sm font-bold"
+            className="px-4 py-1 box-frame text-sm font-bold"
             aria-label="テンポ計測"
           >
             {t("option.measure", lang)}
@@ -304,11 +304,7 @@ function ToggleButton({ active, onClick, label }: { active: boolean; onClick: ()
   return (
     <button
       onClick={onClick}
-      className="px-3 py-1 border text-sm font-bold transition-colors"
-      style={{
-        backgroundColor: active ? "#C0C0C0" : "white",
-        borderColor: "var(--border-color)",
-      }}
+      className={`px-3 py-1 text-sm font-bold transition-colors ${active ? "box-frame box-frame-fill" : "box-frame"}`}
       aria-pressed={active}
     >
       {label}
@@ -558,7 +554,7 @@ function PatternPanel({
       <div className="flex justify-end p-4">
         <button
           onClick={onClose}
-          className="px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
+          className="px-6 py-2 box-frame text-sm font-bold"
           aria-label="閉じる"
         >
           Back
@@ -569,10 +565,9 @@ function PatternPanel({
           <button
             key={pattern.id}
             onClick={() => onSelect(pattern.id)}
-            className="block w-full p-1 border border-[var(--border-color)] transition-colors"
-            style={{
-              backgroundColor: currentPatternId === pattern.id ? "#C0C0C0" : "white",
-            }}
+            className={`block w-full p-1 transition-colors ${
+              currentPatternId === pattern.id ? "box-frame box-frame-fill" : "box-frame"
+            }`}
             aria-label={`${pattern.nameJa}を選択`}
           >
             <div className="px-1 text-left text-xs font-bold">

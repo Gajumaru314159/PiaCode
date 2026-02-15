@@ -40,8 +40,12 @@ button, [role="button"] {
 .box-frame {
   border: 4px solid transparent;
   border-image-source: url("/images/backgrounds/box.webp");
-  border-image-slice: 4;
+  border-image-slice: 4 fill;
   border-image-repeat: repeat;
+}
+
+.box-frame-fill {
+  border-image-source: url("/images/backgrounds/box-fill.webp");
 }
 
 /* スクロールバーのスタイル */
