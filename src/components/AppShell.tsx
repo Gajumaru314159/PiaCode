@@ -46,11 +46,12 @@ export function AppShell() {
               style={{
                 backgroundColor: tab.color,
                 opacity: isActive ? 1 : 0.82,
-                fontSize: isActive ? "1.1rem" : "0.95rem",
+                fontSize: "1rem",
+                fontWeight: 700,
                 transform: isActive ? "translateY(-2px)" : "translateY(-10px)",
                 boxShadow: isActive
-                  ? "0 4px 0 rgba(0, 0, 0, 0.28), 0 5px 1px rgba(0, 0, 0, 0.12)"
-                  : "0 2px 0 rgba(0, 0, 0, 0.14)",
+                  ? "0 4px 8px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.2)"
+                  : "0 2px 5px rgba(0, 0, 0, 0.16)",
                 zIndex: isActive ? 4 : 2,
                 borderTopLeftRadius: "2px",
                 borderTopRightRadius: "2px",
