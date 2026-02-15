@@ -4,7 +4,12 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
 import { PATTERNS, getPattern } from "@/lib/audio";
-import { createChordToken, midiToVexKey } from "@/lib/music";
+import { createChordToken } from "@/lib/music";
+import {
+  buildBarNotationModel,
+  buildVexVoiceData,
+  generateResolvedBarNotesFromChords,
+} from "@/lib/patternRender";
 
 /**
  * @brief Optionタブ - 各種設定画面
@@ -304,11 +309,6 @@ function ToggleButton({ active, onClick, label }: { active: boolean; onClick: ()
   );
 }
 
-interface PreviewEvent {
-  atBeat: number;
-  midiNotes: number[];
-}
-
 /**
  * @brief 演奏パターンの楽譜プレビュー
  */
@@ -335,7 +335,16 @@ function PatternPreview({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const Vex: any = await import("vexflow");
         const VexModule = Vex.default || Vex;
-        const { Renderer, Stave, StaveNote, Voice, Formatter, StaveConnector } = VexModule.Flow || VexModule;
+        const {
+          Renderer,
+          Stave,
+          StaveNote,
+          Voice,
+          Formatter,
+          StaveConnector,
+          Beam,
+          Tuplet,
+        } = VexModule.Flow || VexModule;
 
         if (disposed || !containerRef.current) return;
         container.innerHTML = "";
@@ -349,6 +358,7 @@ function PatternPreview({
         const bars = 2;
         const horizontalPadding = 14;
         const barWidth = Math.floor((logicalWidth - horizontalPadding * 2) / bars);
+        const pattern = getPattern(patternId);
         const previewChord = createChordToken("C", "M");
 
         const renderer = new Renderer(container, Renderer.Backends.SVG);
@@ -356,13 +366,27 @@ function PatternPreview({
         const context = renderer.getContext();
         context.setFont("Arial", 10);
 
-        const activeEvents = buildPreviewEvents(patternId, previewChord, beatsPerBar, bars);
         for (let bar = 0; bar < bars; bar++) {
           const x = horizontalPadding + bar * barWidth;
           const y = rowTop;
-          const barStartBeat = bar * beatsPerBar;
+          const chordsInBar = Array.from({ length: beatsPerBar }, () => ({ ...previewChord }));
 
           if (showBothClefs) {
+            const rightResolved = generateResolvedBarNotesFromChords(
+              pattern,
+              chordsInBar,
+              beatsPerBar,
+              "R"
+            );
+            const leftResolved = generateResolvedBarNotesFromChords(
+              pattern,
+              chordsInBar,
+              beatsPerBar,
+              "L"
+            );
+            const rightModel = buildBarNotationModel(rightResolved, beatsPerBar);
+            const leftModel = buildBarNotationModel(leftResolved, beatsPerBar);
+
             const trebleStave = new Stave(x, y, barWidth);
             if (bar === 0) {
               trebleStave.addClef("treble");
@@ -383,36 +407,69 @@ function PatternPreview({
               connector.setContext(context).draw();
             }
 
-            const trebleNotes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, "treble", 0);
-            const bassNotes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, "bass", -12);
+            const trebleData = buildVexVoiceData({
+              StaveNoteClass: StaveNote,
+              BeamClass: Beam,
+              TupletClass: Tuplet,
+              model: rightModel,
+              clef: "treble",
+              midiShift: 0,
+            });
+            const bassData = buildVexVoiceData({
+              StaveNoteClass: StaveNote,
+              BeamClass: Beam,
+              TupletClass: Tuplet,
+              model: leftModel,
+              clef: "bass",
+              midiShift: 0,
+            });
 
-            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            trebleVoice.addTickables(trebleNotes);
+            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            trebleVoice.addTickables(trebleData.notes);
             const trebleWidth = Math.max(40, trebleStave.getNoteEndX() - trebleStave.getNoteStartX() - 4);
             new Formatter().joinVoices([trebleVoice]).format([trebleVoice], trebleWidth);
             trebleVoice.draw(context, trebleStave);
+            trebleData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            trebleData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
 
-            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            bassVoice.addTickables(bassNotes);
+            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            bassVoice.addTickables(bassData.notes);
             const bassWidth = Math.max(40, bassStave.getNoteEndX() - bassStave.getNoteStartX() - 4);
             new Formatter().joinVoices([bassVoice]).format([bassVoice], bassWidth);
             bassVoice.draw(context, bassStave);
+            bassData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            bassData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
           } else {
             const clef: "treble" | "bass" = hand === "R" ? "treble" : "bass";
-            const midiShift = hand === "R" ? 0 : -12;
             const stave = new Stave(x, y, barWidth);
             if (bar === 0) {
               stave.addClef(clef);
               stave.addTimeSignature("4/4");
             }
             stave.setContext(context).draw();
+            const resolvedNotes = generateResolvedBarNotesFromChords(
+              pattern,
+              chordsInBar,
+              beatsPerBar,
+              hand
+            );
+            const barModel = buildBarNotationModel(resolvedNotes, beatsPerBar);
 
-            const notes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, clef, midiShift);
-            const voice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            voice.addTickables(notes);
+            const voiceData = buildVexVoiceData({
+              StaveNoteClass: StaveNote,
+              BeamClass: Beam,
+              TupletClass: Tuplet,
+              model: barModel,
+              clef,
+              midiShift: 0,
+            });
+            const voice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            voice.addTickables(voiceData.notes);
             const noteWidth = Math.max(40, stave.getNoteEndX() - stave.getNoteStartX() - 4);
             new Formatter().joinVoices([voice]).format([voice], noteWidth);
             voice.draw(context, stave);
+            voiceData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            voiceData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
           }
         }
 
@@ -451,54 +508,6 @@ function PatternPreview({
       style={{ minHeight: compact ? (showBothClefs ? 116 : 92) : (showBothClefs ? 136 : 114) }}
     />
   );
-}
-
-/**
- * @brief プレビュー用にパターンイベントを作成する
- */
-function buildPreviewEvents(patternId: string, chord: ReturnType<typeof createChordToken>, beatsPerBar: number, bars: number): PreviewEvent[] {
-  const pattern = getPattern(patternId);
-  const events: PreviewEvent[] = [];
-  for (let bar = 0; bar < bars; bar++) {
-    const barEvents = pattern.generate(chord, beatsPerBar, bar * beatsPerBar);
-    for (const event of barEvents) {
-      events.push({ atBeat: event.atBeat, midiNotes: event.midiNotes });
-    }
-  }
-  return events;
-}
-
-/**
- * @brief プレビュー用に1小節分の音符を作成する
- */
-function buildPreviewNotes(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  StaveNoteClass: any,
-  events: PreviewEvent[],
-  barStartBeat: number,
-  beatsPerBar: number,
-  clef: "treble" | "bass",
-  midiShift: number
-) {
-  const restKey = clef === "bass" ? "d/3" : "b/4";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const notes: any[] = [];
-  const eventMap = new Map<number, number[]>();
-  for (const event of events) {
-    eventMap.set(event.atBeat, event.midiNotes);
-  }
-
-  for (let beat = 0; beat < beatsPerBar; beat++) {
-    const midiNotes = eventMap.get(barStartBeat + beat);
-    if (!midiNotes || midiNotes.length === 0) {
-      notes.push(new StaveNoteClass({ keys: [restKey], duration: "4r", clef }));
-      continue;
-    }
-    const keys = midiNotes.map((midi) => midiToVexKey(midi + midiShift));
-    notes.push(new StaveNoteClass({ keys, duration: "4", clef }));
-  }
-
-  return notes;
 }
 
 /** パターン選択パネル（全画面表示） */

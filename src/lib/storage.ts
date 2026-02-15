@@ -1,4 +1,5 @@
 import { AppOptions, Progression, SavedProgression } from "@/types/music";
+import { getDefaultPatternId, isValidPatternId } from "./audio";
 
 /** LocalStorageキー定義 */
 const KEYS = {
@@ -145,8 +146,8 @@ export const DEFAULT_OPTIONS: AppOptions = {
   audioTrack: "both",
   metronomeVolume: 0.5,
   leftRightLock: true,
-  leftPatternId: "whole",
-  rightPatternId: "whole",
+  leftPatternId: getDefaultPatternId(),
+  rightPatternId: getDefaultPatternId(),
   tempo: 120,
   language: "ja",
 };
@@ -173,6 +174,12 @@ export function loadOptions(): AppOptions {
   merged.rowCount = Math.min(6, Math.max(1, Number(merged.rowCount) || DEFAULT_OPTIONS.rowCount));
   merged.metronomeVolume = Math.min(1, Math.max(0, Number(merged.metronomeVolume) || 0));
   merged.tempo = Math.min(300, Math.max(30, Number(merged.tempo) || DEFAULT_OPTIONS.tempo));
+  if (!isValidPatternId(merged.leftPatternId)) {
+    merged.leftPatternId = DEFAULT_OPTIONS.leftPatternId;
+  }
+  if (!isValidPatternId(merged.rightPatternId)) {
+    merged.rightPatternId = DEFAULT_OPTIONS.rightPatternId;
+  }
 
   return merged;
 }
