@@ -1,5 +1,6 @@
 import { AppOptions, Progression, SavedProgression } from "@/types/music";
 import { getDefaultPatternId, isValidPatternId } from "./audio";
+import { SUPPORTED_LANGUAGES } from "./i18n";
 
 /** LocalStorageキー定義 */
 const KEYS = {
@@ -207,6 +208,9 @@ export function loadOptions(): AppOptions {
   }
   if (!isValidPatternId(merged.rightPatternId)) {
     merged.rightPatternId = DEFAULT_OPTIONS.rightPatternId;
+  }
+  if (!SUPPORTED_LANGUAGES.includes(merged.language)) {
+    merged.language = DEFAULT_OPTIONS.language;
   }
 
   return merged;

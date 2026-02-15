@@ -18,6 +18,11 @@ export type ChordQuality =
 export type Hand = "L" | "R";
 
 /**
+ * @brief 対応言語コード
+ */
+export type AppLanguage = "ja" | "en" | "zh" | "ko" | "de" | "it" | "ar";
+
+/**
  * @brief コードトークン（1拍分のデータ）
  */
 export interface ChordToken {
@@ -75,7 +80,7 @@ export interface AppOptions {
   leftRightLock: boolean;
   leftPatternId: string;
   rightPatternId: string;
-  language: "ja" | "en" | "zh";
+  language: AppLanguage;
 }
 
 /**

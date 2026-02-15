@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { t } from "@/lib/i18n";
+import { LANGUAGE_OPTIONS, isRtlLanguage, t } from "@/lib/i18n";
 import { PATTERNS, getPattern } from "@/lib/audio";
 import { createChordToken } from "@/lib/music";
 import { SYSTEM_PRESETS } from "@/lib/presets";
@@ -19,6 +19,7 @@ import {
   loadOptions,
   loadUserPresets,
 } from "@/lib/storage";
+import { AppLanguage } from "@/types/music";
 
 function buildMigrationFilename(date: Date = new Date()): string {
   const year = String(date.getFullYear());
@@ -34,6 +35,9 @@ export function OptionTab() {
   const { state, dispatch } = useApp();
   const { options, progression, playback } = state;
   const lang = options.language;
+  const isRtl = isRtlLanguage(lang);
+  const sectionTitleAlignClass = isRtl ? "text-right" : "text-left";
+  const itemLabelAlignClass = isRtl ? "text-right" : "text-left";
 
   const [showPatternPanel, setShowPatternPanel] = useState(false);
   const [patternHand, setPatternHand] = useState<"L" | "R">("R");
@@ -220,12 +224,12 @@ export function OptionTab() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4 paper-bg-scroll">
+    <div className="h-full overflow-y-auto p-4 space-y-4 paper-bg-scroll" dir={isRtl ? "rtl" : "ltr"}>
       {/* 楽譜表示 */}
-      <Section title={t("option.notation", lang)}>
-        <div className="flex flex-wrap gap-4">
+      <Section title={t("option.notation", lang)} titleClassName={sectionTitleAlignClass}>
+        <div className="space-y-3">
           <div>
-            <label className="text-xs block mb-1">{t("option.barsPerRow", lang)}</label>
+            <label className={`text-xs block mb-1 ${itemLabelAlignClass}`}>{t("option.barsPerRow", lang)}</label>
             <div className="flex flex-wrap gap-1">
               {([2, 4] as const).map((v) => (
                 <ToggleButton
@@ -238,7 +242,7 @@ export function OptionTab() {
             </div>
           </div>
           <div>
-            <label className="text-xs block mb-1">{t("option.rowCount", lang)}</label>
+            <label className={`text-xs block mb-1 ${itemLabelAlignClass}`}>{t("option.rowCount", lang)}</label>
             <div className="flex flex-wrap gap-1">
               {[1, 2, 3, 4, 5, 6].map((v) => (
                 <ToggleButton
@@ -251,7 +255,7 @@ export function OptionTab() {
             </div>
           </div>
           <div>
-            <label className="text-xs block mb-1">{t("option.pageTurnMode", lang)}</label>
+            <label className={`text-xs block mb-1 ${itemLabelAlignClass}`}>{t("option.pageTurnMode", lang)}</label>
             <div className="flex flex-wrap gap-1">
               {(["follow", "page"] as const).map((v) => (
                 <ToggleButton
@@ -267,7 +271,7 @@ export function OptionTab() {
       </Section>
 
       {/* 音声トラック */}
-      <Section title={t("option.audioTrack", lang)}>
+      <Section title={t("option.audioTrack", lang)} titleClassName={sectionTitleAlignClass}>
         <div className="flex flex-wrap gap-1">
           {(["none", "both", "left", "right"] as const).map((v) => (
             <ToggleButton
@@ -292,7 +296,7 @@ export function OptionTab() {
       </Section>
 
       {/* メトロノーム音量 */}
-      <Section title={t("option.metronomeVolume", lang)}>
+      <Section title={t("option.metronomeVolume", lang)} titleClassName={sectionTitleAlignClass}>
         <input
           type="range"
           min={0}
@@ -306,9 +310,9 @@ export function OptionTab() {
       </Section>
 
       {/* 演奏パターン */}
-      <Section title={t("option.pattern", lang)}>
-        <div className="flex items-center gap-4 mb-2">
-          <span className="text-xs">{t("option.leftRightLock", lang)}</span>
+      <Section title={t("option.pattern", lang)} titleClassName={sectionTitleAlignClass}>
+        <div className="mb-2">
+          <div className={`text-xs mb-1 ${itemLabelAlignClass}`}>{t("option.leftRightLock", lang)}</div>
           <div className="flex gap-1">
             <ToggleButton
               active={options.leftRightLock}
@@ -355,7 +359,7 @@ export function OptionTab() {
       </Section>
 
       {/* テンポ */}
-      <Section title={t("option.tempo", lang)}>
+      <Section title={t("option.tempo", lang)} titleClassName={sectionTitleAlignClass}>
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -382,13 +386,9 @@ export function OptionTab() {
       </Section>
 
       {/* 言語 */}
-      <Section title={t("option.language", lang)}>
+      <Section title={t("option.language", lang)} titleClassName={sectionTitleAlignClass}>
         <div className="flex flex-wrap gap-1">
-          {([
-            { code: "ja" as const, label: "日本語" },
-            { code: "en" as const, label: "English" },
-            { code: "zh" as const, label: "中国語" },
-          ]).map(({ code, label }) => (
+          {LANGUAGE_OPTIONS.map(({ code, label }) => (
             <ToggleButton
               key={code}
               active={options.language === code}
@@ -400,7 +400,7 @@ export function OptionTab() {
       </Section>
 
       {/* データ移行 */}
-      <Section title={t("option.dataMigration", lang)}>
+      <Section title={t("option.dataMigration", lang)} titleClassName={sectionTitleAlignClass}>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleExportMigration}
@@ -435,10 +435,18 @@ export function OptionTab() {
 }
 
 /** セクションコンテナ */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  titleClassName = "text-left",
+}: {
+  title: string;
+  children: React.ReactNode;
+  titleClassName?: string;
+}) {
   return (
     <div className="p-3 box-frame">
-      <h3 className="text-sm font-bold mb-2">{title}</h3>
+      <h3 className={`text-sm font-bold mb-2 ${titleClassName}`}>{title}</h3>
       {children}
     </div>
   );
@@ -691,7 +699,7 @@ function PatternPanel({
   onSelect,
 }: {
   hand: "L" | "R";
-  lang: "ja" | "en" | "zh";
+  lang: AppLanguage;
   beatsPerBar: 3 | 4;
   onClose: () => void;
   currentPatternId: string;
