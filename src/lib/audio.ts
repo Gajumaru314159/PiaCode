@@ -108,11 +108,14 @@ export function resolveToneRef(
   const notes = chordToMidiNotes(chord, 4);
   if (notes.length === 0) return null;
 
-  const degreeBaseIndex = ((tone.degreeIndex % notes.length) + notes.length) % notes.length;
-  const degreeOctave = Math.floor(tone.degreeIndex / notes.length);
-  const baseMidi = notes[degreeBaseIndex] + degreeOctave * 12;
+  const chordToneCount = notes.length;
+  const degreeOctaveShift = Math.floor(tone.degreeIndex / chordToneCount);
+  const normalizedDegreeIndex =
+    ((tone.degreeIndex % chordToneCount) + chordToneCount) % chordToneCount;
+  const totalOctaveShift = tone.octaveShift + degreeOctaveShift;
+  const baseMidi = notes[normalizedDegreeIndex];
 
-  return baseMidi + tone.octaveShift * 12 + (tone.semitoneShift ?? 0);
+  return baseMidi + totalOctaveShift * 12 + (tone.semitoneShift ?? 0);
 }
 
 /**
@@ -168,9 +171,6 @@ function definePattern(
   };
 }
 
-/**
- * @brief 4分打ち（右手2分、左手4分）
- */
 const quarterPulsePattern = definePattern({
   id: "manual.quarterPulse",
   name: "Quarter Pulse",
@@ -191,9 +191,6 @@ const quarterPulsePattern = definePattern({
   },
 });
 
-/**
- * @brief 画像1系（右手4分コード、左手8分パルス）
- */
 const eighthBassPulsePattern = definePattern({
   id: "manual.eighthBassPulse",
   name: "Eighth Bass Pulse",
@@ -202,10 +199,10 @@ const eighthBassPulsePattern = definePattern({
     // *   *   *   *   
     // * * * * * * * *  
     R: [
-      N(12, 0, [T(1, 0), T(2, 0), T(0, 1)]),
-      N(12, 1, [T(1, 0), T(2, 0), T(0, 1)]),
-      N(12, 2, [T(1, 0), T(2, 0), T(0, 1)]),
-      N(12, 3, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(12, 0, [T(1, 0), T(2, 0), T(3, 0)]),
+      N(12, 1, [T(1, 0), T(2, 0), T(3, 0)]),
+      N(12, 2, [T(1, 0), T(2, 0), T(3, 0)]),
+      N(12, 3, [T(1, 0), T(2, 0), T(3, 0)]),
     ],
     L: [
       N(6, 0, [T(0, -2)]),
@@ -220,9 +217,6 @@ const eighthBassPulsePattern = definePattern({
   },
 });
 
-/**
- * @brief 画像2系（右手2分コード、左手上行8分）
- */
 const halfChordRisePattern = definePattern({
   id: "manual.halfChordRise",
   name: "Half Chord Rise",
@@ -238,11 +232,11 @@ const halfChordRisePattern = definePattern({
       N(6, 0, [T(0, -2)]),
       N(6, 0, [T(1, -2)]),
       N(6, 1, [T(2, -2)]),
-      N(6, 1, [T(0, -1)]),
+      N(6, 1, [T(3, -2)]),
       N(6, 2, [T(0, -2)]),
       N(6, 2, [T(1, -2)]),
       N(6, 3, [T(2, -2)]),
-      N(6, 3, [T(0, -1)]),
+      N(6, 3, [T(3, -2)]),
     ],
   },
 });
@@ -259,13 +253,13 @@ const restOffbeatCompPattern = definePattern({
     // *   -   *   -
     R: [
       R(6),
-      N(6, 0, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(6, 0, [T(1, 0), T(2, 0), T(3, 0)]),
       R(6),
-      N(6, 1, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(6, 1, [T(1, 0), T(2, 0), T(3, 0)]),
       R(6),
-      N(6, 2, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(6, 2, [T(1, 0), T(2, 0), T(3, 0)]),
       R(6),
-      N(6, 3, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(6, 3, [T(1, 0), T(2, 0), T(3, 0)]),
     ],
     L: [
       N(18, 0, [T(0, -2), T(0, -1)]),
@@ -341,14 +335,14 @@ const imagePhraseAltBassPattern = definePattern({
   nameJa: "フレーズ+交互ベース",
   notesByHand: {
     R: [
-      N(6, 0, [T(0, 1), T(2, 0)]),
+      N(6, 0, [T(3, 0), T(2, 0)]),
       N(6, 0, [T(1, 0)]),
       N(6, 1, [T(2, 0)]),
-      N(6, 1, [T(0, 1), T(2, 0)]),
-      N(6, 2, [T(1, 1), T(0, 1)]),
+      N(6, 1, [T(3, 0), T(2, 0)]),
+      N(6, 2, [T(4, 0), T(3, 0)]),
       N(6, 2, [T(2, 0)]),
-      N(6, 3, [T(0, 1)]),
-      N(6, 3, [T(1, 1), T(0, 1)]),
+      N(6, 3, [T(3, 0)]),
+      N(6, 3, [T(4, 0), T(3, 0)]),
     ],
     L: [
       N(12, 0, [T(0, -1), T(1, -1), T(2, -1)]),
@@ -369,11 +363,11 @@ const imageAccentSyncPattern = definePattern({
   notesByHand: {
     R: [
       N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(9, 1, [T(0, 0), T(2, 0)]),
-      N(3, 1, [T(1, 0), T(2, 0)]),
+      N(9, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(3, 1, [T(0, 0), T(1, 0), T(2, 0)]),
       N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
-      N(9, 3, [T(0, 0), T(2, 0)]),
-      N(3, 3, [T(1, 0), T(2, 0)]),
+      N(9, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(3, 3, [T(0, 0), T(1, 0), T(2, 0)]),
     ],
     L: [
       N(18, 0, [T(0, -2),T(0, -1)]),
@@ -394,13 +388,13 @@ const ragtimePattern = definePattern({
   nameJa: "ラグタイム",
   notesByHand: {
     R: [
-      N(9, 0, [T(0, 1), T(2, 0)]),
+      N(9, 0, [T(3, 0), T(2, 0)]),
       N(3, 0, [T(1, 0)]),
       N(9, 1, [T(2, 0)]),
-      N(3, 1, [T(0, 1), T(2, 0)]),
+      N(3, 1, [T(3, 0), T(2, 0)]),
       R(9),
       N(3, 2, [T(2, 0)]),
-      N(9, 3, [T(0, 1), T(2, 0)]),
+      N(9, 3, [T(3, 0), T(2, 0)]),
       N(3, 3, [T(2, 0)]),
     ],
     L: [
