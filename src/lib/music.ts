@@ -22,6 +22,53 @@ export const MATRIX_QUALITIES: ChordQuality[] = [
   "M", "m", "7", "m7", "M7", "sus4", "5", "m7-5", "aug", "dim",
 ];
 
+export type AccidentalPreference = "sharp" | "flat";
+
+const SHARP_SPELLING_MAP: Record<PitchClass, string> = {
+  C: "C",
+  "C#": "C#",
+  D: "D",
+  Eb: "D#",
+  E: "E",
+  F: "F",
+  "F#": "F#",
+  G: "G",
+  Ab: "G#",
+  A: "A",
+  Bb: "A#",
+  B: "B",
+};
+
+const FLAT_SPELLING_MAP: Record<PitchClass, string> = {
+  C: "C",
+  "C#": "Db",
+  D: "D",
+  Eb: "Eb",
+  E: "E",
+  F: "F",
+  "F#": "Gb",
+  G: "G",
+  Ab: "Ab",
+  A: "A",
+  Bb: "Bb",
+  B: "B",
+};
+
+const KEY_ACCIDENTAL_PREFERENCE: Record<PitchClass, AccidentalPreference> = {
+  C: "sharp",
+  "C#": "sharp",
+  D: "sharp",
+  Eb: "flat",
+  E: "sharp",
+  F: "flat",
+  "F#": "sharp",
+  G: "sharp",
+  Ab: "flat",
+  A: "sharp",
+  Bb: "flat",
+  B: "sharp",
+};
+
 /**
  * @brief 調に応じたダイアトニック音名を返す
  * @param key 調のルート
@@ -35,6 +82,52 @@ export function getDiatonicRoots(key: PitchClass): PitchClass[] {
 }
 
 /**
+ * @brief キーに応じた臨時記号の優先表記（sharp/flat）を返す
+ * @param key 調のルート
+ * @returns 臨時記号の優先表記
+ */
+export function getAccidentalPreferenceForKey(key: PitchClass): AccidentalPreference {
+  return KEY_ACCIDENTAL_PREFERENCE[key];
+}
+
+/**
+ * @brief ピッチクラスを sharp/flat 優先で表示名に変換する
+ * @param pitch 変換元ピッチクラス
+ * @param preference 優先表記
+ * @returns 表示用音名
+ */
+export function formatPitchClassByPreference(
+  pitch: PitchClass,
+  preference: AccidentalPreference
+): string {
+  const raw = preference === "sharp"
+    ? SHARP_SPELLING_MAP[pitch]
+    : FLAT_SPELLING_MAP[pitch];
+  return raw.replace(/#/g, "♯").replace(/b/g, "♭");
+}
+
+/**
+ * @brief キーに応じた優先表記でピッチクラスを表示名に変換する
+ * @param pitch 変換元ピッチクラス
+ * @param key 調のルート
+ * @returns 表示用音名
+ */
+export function formatPitchClassForKeyDisplay(pitch: PitchClass, key: PitchClass): string {
+  const preference = getAccidentalPreferenceForKey(key);
+  return formatPitchClassByPreference(pitch, preference);
+}
+
+/**
+ * @brief matrixKey（半音インデックス）をピッチクラスへ変換する
+ * @param matrixKey キーインデックス
+ * @returns 調ルートのピッチクラス
+ */
+export function matrixKeyToPitchClass(matrixKey: number): PitchClass {
+  const normalized = ((Math.trunc(matrixKey) % 12) + 12) % 12;
+  return ALL_PITCH_CLASSES[normalized];
+}
+
+/**
  * @brief コードトークンの表示名を返す
  * @param token コードトークン
  * @returns 表示文字列
@@ -45,6 +138,31 @@ export function chordDisplayName(token: ChordToken): string {
   const q = token.quality === "M" ? "" : token.quality;
   const bass = token.bass ? `/${token.bass}` : "";
   return `${token.root}${q}${bass}`;
+}
+
+/**
+ * @brief コードトークンの表示名を、指定キーに応じた臨時記号で返す
+ * @param token コードトークン
+ * @param key 調のルート
+ * @returns 表示文字列
+ */
+export function chordDisplayNameForKey(token: ChordToken, key: PitchClass): string {
+  if (token.isRest) return "";
+  if (!token.root || !token.quality) return "";
+  const q = token.quality === "M" ? "" : token.quality;
+  const root = formatPitchClassForKeyDisplay(token.root, key);
+  const bass = token.bass ? `/${formatPitchClassForKeyDisplay(token.bass, key)}` : "";
+  return `${root}${q}${bass}`;
+}
+
+/**
+ * @brief コードトークンの表示名を、matrixKeyに応じた臨時記号で返す
+ * @param token コードトークン
+ * @param matrixKey キーインデックス
+ * @returns 表示文字列
+ */
+export function chordDisplayNameForMatrixKey(token: ChordToken, matrixKey: number): string {
+  return chordDisplayNameForKey(token, matrixKeyToPitchClass(matrixKey));
 }
 
 /**

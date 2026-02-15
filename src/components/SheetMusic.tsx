@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Progression } from "@/types/music";
-import { ALL_PITCH_CLASSES, chordDisplayName } from "@/lib/music";
+import { chordDisplayNameForKey, matrixKeyToPitchClass } from "@/lib/music";
 import { getPattern } from "@/lib/audio";
 import {
   buildBarNotationModel,
@@ -47,14 +47,15 @@ const VEX_KEY_SIGNATURE_MAP: Record<string, string> = {
  */
 function collectBarChordLabels(
   chordsInBar: Progression["cells"],
-  beatsPerBar: number
+  beatsPerBar: number,
+  keyRoot: NonNullable<Progression["cells"][number]["root"]>
 ): Array<{ beatOffset: number; label: string }> {
   const labels: Array<{ beatOffset: number; label: string }> = [];
   let prevLabel = "";
 
   for (let beatOffset = 0; beatOffset < beatsPerBar; beatOffset++) {
     const cell = chordsInBar[beatOffset];
-    const label = cell && !cell.isRest ? chordDisplayName(cell) : "";
+    const label = cell && !cell.isRest ? chordDisplayNameForKey(cell, keyRoot) : "";
     if (label && label !== prevLabel) {
       labels.push({ beatOffset, label });
     }
@@ -132,7 +133,7 @@ export function SheetMusic({
 
         const leftPattern = getPattern(leftPatternId);
         const rightPattern = getPattern(rightPatternId);
-        const keyRoot = ALL_PITCH_CLASSES[(matrixKey + 12) % 12];
+        const keyRoot = matrixKeyToPitchClass(matrixKey);
         const keySignature = toVexKeySignature(keyRoot);
 
         const sidePadding = 20;
@@ -218,7 +219,7 @@ export function SheetMusic({
           }
 
           // コード名を上部に表示（小節内のコード変化に対応）
-          const chordLabels = collectBarChordLabels(chordsInBar, beatsPerBar);
+          const chordLabels = collectBarChordLabels(chordsInBar, beatsPerBar, keyRoot);
           if (chordLabels.length > 0) {
             context.save();
             context.setFont("Arial", 11, "bold");

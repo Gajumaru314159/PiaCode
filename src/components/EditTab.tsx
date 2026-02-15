@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { getDiatonicRoots, ALL_PITCH_CLASSES, MATRIX_QUALITIES, chordDisplayName, createChordToken, createRestToken, transposeProgression, chordToMidiNotes } from "@/lib/music";
+import { getDiatonicRoots, ALL_PITCH_CLASSES, MATRIX_QUALITIES, chordDisplayNameForMatrixKey, createChordToken, createRestToken, transposeProgression, chordToMidiNotes, formatPitchClassForKeyDisplay } from "@/lib/music";
 import { t } from "@/lib/i18n";
 import { ChordQuality, ChordToken, PitchClass } from "@/types/music";
 import { SavePanel } from "./SavePanel";
@@ -110,6 +110,10 @@ export function EditTab() {
   // キー切替
   const keyRoot = ALL_PITCH_CLASSES[currentKey];
   const diatonicRoots = getDiatonicRoots(keyRoot);
+  const diatonicRootLabels = diatonicRoots.map((root) => ({
+    root,
+    label: formatPitchClassForKeyDisplay(root, keyRoot),
+  }));
 
   // コンポーネントアンマウント時にオーディオコンテキストを解放
   useEffect(() => {
@@ -302,10 +306,10 @@ export function EditTab() {
               onClick: () => shiftKey(-1),
               className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
-            ...diatonicRoots.map((root, idx) => ({
+            ...diatonicRootLabels.map(({ root, label }, idx) => ({
               key: `head-root-${root}`,
               start: 3 + idx,
-              content: root,
+              content: label,
               className: "flex items-center justify-center text-sm bg-black text-white opacity-80",
             })),
             {
@@ -331,12 +335,12 @@ export function EditTab() {
                 content: quality,
                 className: "flex items-center justify-center text-xs bg-black text-white opacity-80"
               },
-              ...diatonicRoots.map((root, idx) => ({
+              ...diatonicRootLabels.map(({ root, label }, idx) => ({
                 key: `matrix-${quality}-${root}`,
                 start: 3 + idx,
                 content: quality,
                 asButton: true,
-                ariaLabel: `${root}${quality}`,
+                ariaLabel: `${label}${quality}`,
                 onClick: () => inputChord(root, quality),
                 className: "flex items-center justify-center text-xs opacity-50",
               })),
@@ -362,10 +366,10 @@ export function EditTab() {
               onClick: inputRest,
               className: "flex items-center justify-center text-lg bg-black text-white opacity-80",
             },
-            ...diatonicRoots.map((root, idx) => ({
+            ...diatonicRootLabels.map(({ root, label }, idx) => ({
               key: `bottom-root-${root}`,
               start: 3 + idx,
-              content: root,
+              content: label,
               className: "flex items-center justify-center text-sm bg-black text-white opacity-80",
             })),
             {
@@ -531,7 +535,7 @@ function KeySignatureDisplay({ keyRoot }: { keyRoot: PitchClass }) {
  */
 function ChordGrid() {
   const { state, dispatch } = useApp();
-  const { progression } = state;
+  const { progression, currentKey } = state;
   const { cells, cursor, beatsPerBar } = progression;
   const playingRowRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -701,7 +705,7 @@ function ChordGrid() {
                 } else if (showSimile) {
                   display = "𝄍";
                 } else {
-                  display = chordDisplayName(cell);
+                  display = chordDisplayNameForMatrixKey(cell, currentKey);
                 }
                 return {
                   key: `chord-${rowStart}-${col}`,
