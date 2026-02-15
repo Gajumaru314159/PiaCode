@@ -30,26 +30,6 @@ html, body {
   height: 100%;
 }
 
-/* 紙のテクスチャ風背景 */
-body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 28px,
-      rgba(0, 0, 0, 0.02) 28px,
-      rgba(0, 0, 0, 0.02) 29px
-    );
-  pointer-events: none;
-  z-index: 0;
-}
-
 /* タップ対象の最小サイズ */
 button, [role="button"] {
   min-width: 44px;

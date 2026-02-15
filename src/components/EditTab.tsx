@@ -10,7 +10,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 
 const GRID_COLS = 11;
 const GRID_UNIT = "10vw";
-const GRID_LIGHT_BORDER = "rgba(120, 170, 220, 0.35)";
+const GRID_LIGHT_BORDER = "rgba(120, 170, 220, 0.15)";
 const GRID_CELL_STYLE: React.CSSProperties = {
   width: `calc(${GRID_UNIT} + 1px)`,
   height: `calc(${GRID_UNIT} + 1px)`,
