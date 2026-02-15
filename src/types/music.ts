@@ -48,6 +48,7 @@ export interface SavedProgression {
   updatedAt: string;
   progression: Progression;
   matrixKey: number;
+  tempo: number;
   isSystem?: boolean;
 }
 
@@ -74,7 +75,6 @@ export interface AppOptions {
   leftRightLock: boolean;
   leftPatternId: string;
   rightPatternId: string;
-  tempo: number;
   language: "ja" | "en" | "zh";
 }
 

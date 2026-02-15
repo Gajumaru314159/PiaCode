@@ -8,14 +8,6 @@ export const ALL_PITCH_CLASSES: PitchClass[] = [
 ];
 
 /**
- * @brief コード品質の表示ラベル
- */
-export const CHORD_QUALITY_LABELS: Record<ChordQuality, string> = {
-  M: "M", m: "m", "7": "7", m7: "m7", M7: "M7",
-  sus4: "sus4", "5": "5", "m7-5": "m7-5", aug: "aug", dim: "dim",
-};
-
-/**
  * @brief マトリックスに表示するコード品質の順序
  */
 export const MATRIX_QUALITIES: ChordQuality[] = [
@@ -128,15 +120,6 @@ export function matrixKeyToPitchClass(matrixKey: number): PitchClass {
 }
 
 /**
- * @brief matrixKeyに応じた臨時記号の優先表記（sharp/flat）を返す
- * @param matrixKey キーインデックス
- * @returns 臨時記号の優先表記
- */
-export function getAccidentalPreferenceForMatrixKey(matrixKey: number): AccidentalPreference {
-  return getAccidentalPreferenceForKey(matrixKeyToPitchClass(matrixKey));
-}
-
-/**
  * @brief コードトークンの表示名を返す
  * @param token コードトークン
  * @returns 表示文字列
@@ -197,19 +180,6 @@ export function createChordToken(root: PitchClass, quality: ChordQuality): Chord
 export function createEmptyProgression(bars: number = 12): Progression {
   const cells: ChordToken[] = Array.from({ length: bars * 8 }, () => createRestToken());
   return { beatsPerBar: 4, cells, cursor: 0, length: cells.length };
-}
-
-/**
- * @brief 再生ループ長を算出する
- * @param totalCells 全セル数
- * @param beatsPerBar 拍子
- */
-export function resolveLoopLength(totalCells: number, beatsPerBar: 3 | 4): number {
-  if (beatsPerBar === 3) {
-    // 3拍子は内部4セル（1-2拍+非表示2セル）を1小節として扱う
-    return Math.floor(totalCells / 4) * 3;
-  }
-  return Math.floor(totalCells / beatsPerBar) * beatsPerBar;
 }
 
 /**

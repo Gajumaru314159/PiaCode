@@ -11,6 +11,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 const GRID_COLS = 11;
 const GRID_UNIT = "36px";
 const GRID_LIGHT_BORDER = "rgba(120, 170, 220, 0.15)";
+const TRAILING_SPACER_ROWS = 6;
 const GRID_CELL_STYLE: React.CSSProperties = {
   width: `calc(${GRID_UNIT} + 1px)`,
   height: `calc(${GRID_UNIT} + 1px)`,
@@ -48,7 +49,7 @@ type GridOverlay = {
 };
 
 /**
- * @brief 12セルを明示生成して、その上に要素を重ねる行コンポーネント
+ * @brief GRID_COLSセルを明示生成して、その上に要素を重ねる行コンポーネント
  */
 function GridRow({ overlays = [], dataAnchor }: { overlays?: GridOverlay[]; dataAnchor?: string }) {
   return (
@@ -100,11 +101,59 @@ function GridRow({ overlays = [], dataAnchor }: { overlays?: GridOverlay[]; data
 }
 
 /**
+ * @brief AudioContextを取得し、停止中なら再開する
+ */
+function ensureAudioContext(ref: React.MutableRefObject<AudioContext | null>): AudioContext {
+  if (!ref.current) {
+    ref.current = new AudioContext();
+  }
+  const ctx = ref.current;
+  if (ctx.state === "suspended") {
+    void ctx.resume();
+  }
+  return ctx;
+}
+
+/**
+ * @brief AudioContextが存在すれば閉じて参照を破棄する
+ */
+function closeAudioContext(ref: React.MutableRefObject<AudioContext | null>): void {
+  const ctx = ref.current;
+  if (!ctx) return;
+  void ctx.close();
+  ref.current = null;
+}
+
+/**
+ * @brief MIDIノート配列を短く発音する
+ */
+function triggerMidiPreview(ctx: AudioContext, notes: number[], duration: number): void {
+  const time = ctx.currentTime;
+  for (const midi of notes) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const attack = Math.min(0.02, duration * 0.2);
+    const release = Math.min(0.08, duration * 0.25);
+    const releaseStart = Math.max(time + attack, time + duration - release);
+    osc.type = "triangle";
+    osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(0.2, time + attack);
+    gain.gain.setValueAtTime(0.2, releaseStart);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + duration + 0.01);
+  }
+}
+
+/**
  * @brief Editタブ - コード進行の入力・編集画面
  */
 export function EditTab() {
   const { state, dispatch } = useApp();
-  const { progression, options, showSavePanel, currentKey } = state;
+  const { progression, playback, options, showSavePanel, currentKey } = state;
   const lang = options.language;
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const matrixAudioCtxRef = useRef<AudioContext | null>(null);
@@ -120,25 +169,8 @@ export function EditTab() {
   // コンポーネントアンマウント時にオーディオコンテキストを解放
   useEffect(() => {
     return () => {
-      if (matrixAudioCtxRef.current) {
-        void matrixAudioCtxRef.current.close();
-        matrixAudioCtxRef.current = null;
-      }
+      closeAudioContext(matrixAudioCtxRef);
     };
-  }, []);
-
-  /**
-   * @brief Matrix入力用のオーディオコンテキストを取得する
-   */
-  const getMatrixAudioContext = useCallback((): AudioContext => {
-    if (!matrixAudioCtxRef.current) {
-      matrixAudioCtxRef.current = new AudioContext();
-    }
-    const ctx = matrixAudioCtxRef.current;
-    if (ctx.state === "suspended") {
-      void ctx.resume();
-    }
-    return ctx;
   }, []);
 
   /**
@@ -146,28 +178,11 @@ export function EditTab() {
    */
   const previewMatrixChord = useCallback((cell: ChordToken) => {
     if (cell.isRest || !cell.root) return;
-    const ctx = getMatrixAudioContext();
+    const ctx = ensureAudioContext(matrixAudioCtxRef);
     const notes = chordToMidiNotes(cell, 4);
-    const duration = 60 / options.tempo;
-    const time = ctx.currentTime;
-    for (const midi of notes) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const attack = Math.min(0.02, duration * 0.2);
-      const release = Math.min(0.08, duration * 0.25);
-      const releaseStart = Math.max(time + attack, time + duration - release);
-      osc.type = "triangle";
-      osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.linearRampToValueAtTime(0.2, time + attack);
-      gain.gain.setValueAtTime(0.2, releaseStart);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(time);
-      osc.stop(time + duration + 0.01);
-    }
-  }, [getMatrixAudioContext, options.tempo]);
+    const duration = 60 / playback.tempo;
+    triggerMidiPreview(ctx, notes, duration);
+  }, [playback.tempo]);
 
   /**
    * @brief 直前拍と同一コードのセルを生成する（先頭は休符）
@@ -538,7 +553,7 @@ function KeySignatureDisplay({ keyRoot }: { keyRoot: PitchClass }) {
  */
 function ChordGrid() {
   const { state, dispatch } = useApp();
-  const { progression, currentKey } = state;
+  const { progression, currentKey, playback } = state;
   const { cells, cursor, beatsPerBar } = progression;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const playingRowRef = useRef<number | null>(null);
@@ -550,6 +565,7 @@ function ChordGrid() {
   useEffect(() => {
     return () => {
       if (playTimerRef.current) clearInterval(playTimerRef.current);
+      closeAudioContext(audioCtxRef);
     };
   }, []);
 
@@ -589,43 +605,12 @@ function ChordGrid() {
   }, [cells.length, beatsPerBar]);
 
   /**
-   * @brief オーディオコンテキストを取得し、必要に応じて再開する
-   */
-  const getAudioContext = useCallback((): AudioContext => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new AudioContext();
-    }
-    const ctx = audioCtxRef.current;
-    if (ctx.state === "suspended") {
-      void ctx.resume();
-    }
-    return ctx;
-  }, []);
-
-  /**
    * @brief MIDIノート配列を短く発音する
    */
   const triggerMidiNotes = useCallback((notes: number[], duration: number) => {
-    const ctx = getAudioContext();
-    const time = ctx.currentTime;
-    for (const midi of notes) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const attack = Math.min(0.02, duration * 0.2);
-      const release = Math.min(0.08, duration * 0.25);
-      const releaseStart = Math.max(time + attack, time + duration - release);
-      osc.type = "triangle";
-      osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.linearRampToValueAtTime(0.2, time + attack);
-      gain.gain.setValueAtTime(0.2, releaseStart);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(time);
-      osc.stop(time + duration + 0.01);
-    }
-  }, [getAudioContext]);
+    const ctx = ensureAudioContext(audioCtxRef);
+    triggerMidiPreview(ctx, notes, duration);
+  }, []);
 
   /**
    * @brief セルのコードを1拍分だけ試聴する
@@ -633,9 +618,9 @@ function ChordGrid() {
   const previewCellChord = useCallback((cell: typeof cells[number]) => {
     if (cell.isRest || !cell.root) return;
     const notes = chordToMidiNotes(cell, 4);
-    const beatDuration = 60 / state.options.tempo;
+    const beatDuration = 60 / playback.tempo;
     triggerMidiNotes(notes, beatDuration);
-  }, [state.options.tempo, triggerMidiNotes]);
+  }, [playback.tempo, triggerMidiNotes]);
 
   /**
    * @brief 小節番号タップで該当段を1回再生する
@@ -648,12 +633,12 @@ function ChordGrid() {
       playingRowRef.current = null;
       return;
     }
-    getAudioContext();
+    ensureAudioContext(audioCtxRef);
 
     const playbackOffsets = beatsPerBar === 3
       ? [0, 1, 2, 4, 5, 6]
       : [0, 1, 2, 3, 4, 5, 6, 7];
-    const tempo = state.options.tempo;
+    const tempo = playback.tempo;
     const beatDuration = 60 / tempo;
     let beatIdx = 0;
     playingRowRef.current = rowStart;
@@ -676,7 +661,7 @@ function ChordGrid() {
 
     scheduleNext();
     playTimerRef.current = window.setInterval(scheduleNext, beatDuration * 1000);
-  }, [cells, beatsPerBar, state.options.tempo, getAudioContext, triggerMidiNotes]);
+  }, [cells, beatsPerBar, playback.tempo, triggerMidiNotes]);
 
   // 8セル1段（3拍子時は内部4セル×2小節）
   const cellsPerRow = 8;
@@ -693,7 +678,7 @@ function ChordGrid() {
   /**
    * @brief 同段で直前拍と同一コードかどうか判定（Simile表示用）
    */
-  const isSamileDisplay = (idx: number, prevIdx: number | null): boolean => {
+  const isSimileDisplay = (idx: number, prevIdx: number | null): boolean => {
     if (prevIdx === null) return false;
     if (idx >= cells.length || prevIdx < 0) return false;
     const cell = cells[idx];
@@ -742,7 +727,7 @@ function ChordGrid() {
                 const cell = cells[idx];
                 const isCursor = idx === cursor;
                 const prevIdx = col > 0 ? rowStart + visibleOffsets[col - 1] : null;
-                const showSimile = isSamileDisplay(idx, prevIdx);
+                const showSimile = isSimileDisplay(idx, prevIdx);
                 let display = "";
                 if (cell.isRest) {
                   display = "";
@@ -770,13 +755,9 @@ function ChordGrid() {
             );
           })()
         ))}
-        {/* 自動調整したい */}
-        <GridRow />
-        <GridRow />
-        <GridRow />
-        <GridRow />
-        <GridRow />
-        <GridRow />
+        {Array.from({ length: TRAILING_SPACER_ROWS }, (_, idx) => (
+          <GridRow key={`spacer-${idx}`} />
+        ))}
       </div>
     </div>
   );

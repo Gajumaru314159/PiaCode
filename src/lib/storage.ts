@@ -12,6 +12,7 @@ const KEYS = {
 const STORAGE_PREFIX = "piacode.";
 const MIGRATION_FILE_MAGIC = "piacode-storage";
 const MIGRATION_FILE_VERSION = 1;
+export const DEFAULT_TEMPO = 120;
 
 interface MigrationFileData {
   magic: string;
@@ -57,6 +58,7 @@ function safeGet<T>(key: string): T | null {
 export interface AutosaveData {
   progression: Progression;
   matrixKey: number;
+  tempo: number;
 }
 
 function normalizeMatrixKey(key: unknown): number {
@@ -65,13 +67,25 @@ function normalizeMatrixKey(key: unknown): number {
   return ((Math.floor(num) % 12) + 12) % 12;
 }
 
+function normalizeTempo(tempo: unknown): number {
+  const num = Number(tempo);
+  if (!Number.isFinite(num)) return DEFAULT_TEMPO;
+  return Math.min(300, Math.max(30, Math.floor(num)));
+}
+
+function loadLegacyTempoFromOptions(): number {
+  const raw = safeGet<Record<string, unknown>>(KEYS.options);
+  return normalizeTempo(raw?.tempo);
+}
+
 /**
  * @brief 自動保存データを保存する
  */
-export function saveAutosave(progression: Progression, matrixKey: number): boolean {
+export function saveAutosave(progression: Progression, matrixKey: number, tempo: number): boolean {
   const data: AutosaveData = {
     progression,
     matrixKey: normalizeMatrixKey(matrixKey),
+    tempo: normalizeTempo(tempo),
   };
   return safeSet(KEYS.autosave, data);
 }
@@ -82,12 +96,14 @@ export function saveAutosave(progression: Progression, matrixKey: number): boole
 export function loadAutosave(): AutosaveData | null {
   const raw = safeGet<unknown>(KEYS.autosave);
   if (!raw || typeof raw !== "object") return null;
+  const legacyTempo = loadLegacyTempoFromOptions();
   if ("progression" in raw) {
     const withMeta = raw as Partial<AutosaveData>;
     if (!withMeta.progression) return null;
     return {
       progression: withMeta.progression,
       matrixKey: normalizeMatrixKey(withMeta.matrixKey),
+      tempo: normalizeTempo(withMeta.tempo ?? legacyTempo),
     };
   }
   // 旧形式（Progressionのみ保存）との互換
@@ -96,6 +112,7 @@ export function loadAutosave(): AutosaveData | null {
   return {
     progression: legacy,
     matrixKey: 0,
+    tempo: legacyTempo,
   };
 }
 
@@ -106,6 +123,7 @@ export function loadAutosave(): AutosaveData | null {
  */
 export function loadUserPresets(): SavedProgression[] {
   const raw = safeGet<Partial<SavedProgression>[]>(KEYS.userPresets) || [];
+  const legacyTempo = loadLegacyTempoFromOptions();
   return raw
     .filter((p): p is Partial<SavedProgression> & Pick<SavedProgression, "id" | "name" | "createdAt" | "updatedAt" | "progression"> => {
       return Boolean(p?.id && p?.name && p?.createdAt && p?.updatedAt && p?.progression);
@@ -117,6 +135,7 @@ export function loadUserPresets(): SavedProgression[] {
       updatedAt: p.updatedAt,
       progression: p.progression,
       matrixKey: normalizeMatrixKey(p.matrixKey),
+      tempo: normalizeTempo(p.tempo ?? legacyTempo),
       isSystem: p.isSystem,
     }));
 }
@@ -159,7 +178,6 @@ export const DEFAULT_OPTIONS: AppOptions = {
   leftRightLock: true,
   leftPatternId: getDefaultPatternId(),
   rightPatternId: getDefaultPatternId(),
-  tempo: 120,
   language: "ja",
 };
 
@@ -184,7 +202,6 @@ export function loadOptions(): AppOptions {
   merged.barsPerRow = merged.barsPerRow === 4 ? 4 : 2;
   merged.rowCount = Math.min(6, Math.max(1, Number(merged.rowCount) || DEFAULT_OPTIONS.rowCount));
   merged.metronomeVolume = Math.min(1, Math.max(0, Number(merged.metronomeVolume) || 0));
-  merged.tempo = Math.min(300, Math.max(30, Number(merged.tempo) || DEFAULT_OPTIONS.tempo));
   if (!isValidPatternId(merged.leftPatternId)) {
     merged.leftPatternId = DEFAULT_OPTIONS.leftPatternId;
   }

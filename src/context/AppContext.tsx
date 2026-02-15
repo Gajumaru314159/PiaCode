@@ -4,7 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect, useRef, useCal
 import { AppOptions, Progression, PlaybackState, SavedProgression } from "@/types/music";
 import { createEmptyProgression, createRestToken } from "@/lib/music";
 import {
-  loadOptions, saveOptions, DEFAULT_OPTIONS,
+  loadOptions, saveOptions, DEFAULT_OPTIONS, DEFAULT_TEMPO,
   saveAutosave, loadAutosave,
   loadLastOpened, saveLastOpened, LastOpenedInfo,
   loadUserPresets, saveUserPreset, deleteUserPreset,
@@ -21,7 +21,6 @@ export interface AppState {
   playback: PlaybackState;
   options: AppOptions;
   userPresets: SavedProgression[];
-  lastOpened: LastOpenedInfo | null;
   showSplash: boolean;
   showSavePanel: boolean;
   currentKey: number; // キーインデックス（0-11）
@@ -39,7 +38,6 @@ type Action =
   | { type: "SET_PLAYBACK"; playback: Partial<PlaybackState> }
   | { type: "SET_OPTIONS"; options: Partial<AppOptions> }
   | { type: "SET_USER_PRESETS"; presets: SavedProgression[] }
-  | { type: "SET_LAST_OPENED"; info: LastOpenedInfo | null }
   | { type: "HIDE_SPLASH" }
   | { type: "SET_SHOW_SAVE_PANEL"; show: boolean }
   | { type: "SET_KEY"; key: number };
@@ -53,11 +51,10 @@ const initialState: AppState = {
     isLoop: true,
     isMetronomeOn: false,
     currentBeat: 0,
-    tempo: 120,
+    tempo: DEFAULT_TEMPO,
   },
   options: DEFAULT_OPTIONS,
   userPresets: [],
-  lastOpened: null,
   showSplash: true,
   showSavePanel: false,
   currentKey: 0,
@@ -71,7 +68,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_TAB": {
       // Editタブから離れるときに自動保存
       if (state.currentTab === "edit" && action.tab !== "edit") {
-        saveAutosave(state.progression, state.currentKey);
+        saveAutosave(state.progression, state.currentKey, state.playback.tempo);
       }
       const leavingPlay = state.currentTab === "play" && action.tab !== "play";
       return {
@@ -141,8 +138,6 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case "SET_USER_PRESETS":
       return { ...state, userPresets: action.presets };
-    case "SET_LAST_OPENED":
-      return { ...state, lastOpened: action.info };
     case "HIDE_SPLASH":
       return { ...state, showSplash: false };
     case "SET_SHOW_SAVE_PANEL":
@@ -174,13 +169,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const opts = loadOptions();
     dispatch({ type: "SET_OPTIONS", options: opts });
-    dispatch({ type: "SET_PLAYBACK", playback: { tempo: opts.tempo } });
 
     const presets = loadUserPresets();
     dispatch({ type: "SET_USER_PRESETS", presets });
 
     const last = loadLastOpened();
-    dispatch({ type: "SET_LAST_OPENED", info: last });
 
     if (last) {
       // 前回のデータをロード
@@ -194,11 +187,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (auto) {
           dispatch({ type: "SET_PROGRESSION", progression: auto.progression });
           dispatch({ type: "SET_KEY", key: auto.matrixKey });
+          dispatch({ type: "SET_PLAYBACK", playback: { tempo: auto.tempo, currentBeat: 0 } });
         }
       }
       if (found) {
         dispatch({ type: "SET_PROGRESSION", progression: { ...found.progression } });
         dispatch({ type: "SET_KEY", key: found.matrixKey });
+        dispatch({ type: "SET_PLAYBACK", playback: { tempo: found.tempo, currentBeat: 0 } });
       }
     }
 
@@ -218,12 +213,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 自動保存（5秒ごと）
   useEffect(() => {
     autosaveTimerRef.current = setInterval(() => {
-      saveAutosave(state.progression, state.currentKey);
+      saveAutosave(state.progression, state.currentKey, state.playback.tempo);
     }, 5000);
     return () => {
       if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
     };
-  }, [state.progression, state.currentKey]);
+  }, [state.progression, state.currentKey, state.playback.tempo]);
 
   // オプション変更時に即時保存
   useEffect(() => {
@@ -236,13 +231,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadPreset = useCallback((preset: SavedProgression) => {
     dispatch({ type: "SET_PROGRESSION", progression: { ...preset.progression, cursor: 0 } });
     dispatch({ type: "SET_KEY", key: preset.matrixKey });
-    dispatch({ type: "SET_PLAYBACK", playback: { currentBeat: 0 } });
+    dispatch({ type: "SET_PLAYBACK", playback: { currentBeat: 0, tempo: preset.tempo } });
     const info: LastOpenedInfo = {
       id: preset.id,
       name: preset.name,
       source: preset.isSystem ? "system" : "user",
     };
-    dispatch({ type: "SET_LAST_OPENED", info });
     saveLastOpened(info);
     dispatch({ type: "SET_TAB", tab: "play" });
   }, []);
@@ -262,16 +256,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedAt: now,
       progression: { ...state.progression },
       matrixKey: state.currentKey,
+      tempo: state.playback.tempo,
     };
     saveUserPreset(preset);
     const presets = loadUserPresets();
     dispatch({ type: "SET_USER_PRESETS", presets });
 
     const info: LastOpenedInfo = { id: preset.id, name: preset.name, source: "user" };
-    dispatch({ type: "SET_LAST_OPENED", info });
     saveLastOpened(info);
     return true;
-  }, [state.progression, state.currentKey, state.userPresets]);
+  }, [state.progression, state.currentKey, state.playback.tempo, state.userPresets]);
 
   /**
    * @brief プリセットを削除する

@@ -74,6 +74,7 @@ export const SYSTEM_PRESETS: SavedProgression[] = [
     updatedAt: "2024-01-01T00:00:00Z",
     progression: buildProgression("C-G-Am-Em-F-C-F-G"),
     matrixKey: 0,
+    tempo: 120,
     isSystem: true,
   },
   {
@@ -83,6 +84,7 @@ export const SYSTEM_PRESETS: SavedProgression[] = [
     updatedAt: "2024-01-01T00:00:00Z",
     progression: buildProgression("F-G-Em-Am"),
     matrixKey: 0,
+    tempo: 120,
     isSystem: true,
   },
   {
@@ -92,6 +94,7 @@ export const SYSTEM_PRESETS: SavedProgression[] = [
     updatedAt: "2024-01-01T00:00:00Z",
     progression: buildProgression("FM7-G7-Em7-Am7"),
     matrixKey: 0,
+    tempo: 120,
     isSystem: true,
   },
   {
@@ -101,6 +104,7 @@ export const SYSTEM_PRESETS: SavedProgression[] = [
     updatedAt: "2024-01-01T00:00:00Z",
     progression: buildProgression("C-Am-Dm-G"),
     matrixKey: 0,
+    tempo: 120,
     isSystem: true,
   },
   {
@@ -110,6 +114,7 @@ export const SYSTEM_PRESETS: SavedProgression[] = [
     updatedAt: "2024-01-01T00:00:00Z",
     progression: buildProgression("Am-F-G-C"),
     matrixKey: 0,
+    tempo: 120,
     isSystem: true,
   },
   {
@@ -119,6 +124,7 @@ export const SYSTEM_PRESETS: SavedProgression[] = [
     updatedAt: "2024-01-01T00:00:00Z",
     progression: buildProgression("Am-Dm7-G-C-Am-Dm7-G-C"),
     matrixKey: 0,
+    tempo: 120,
     isSystem: true,
   },
 ];

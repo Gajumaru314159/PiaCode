@@ -32,7 +32,7 @@ function buildMigrationFilename(date: Date = new Date()): string {
  */
 export function OptionTab() {
   const { state, dispatch } = useApp();
-  const { options, progression } = state;
+  const { options, progression, playback } = state;
   const lang = options.language;
 
   const [showPatternPanel, setShowPatternPanel] = useState(false);
@@ -40,13 +40,13 @@ export function OptionTab() {
 
   // テンポ計測用
   const tapTimesRef = useRef<number[]>([]);
-  const [tempoInput, setTempoInput] = useState(String(options.tempo));
+  const [tempoInput, setTempoInput] = useState(String(playback.tempo));
   const importInputRef = useRef<HTMLInputElement>(null);
   const [migrationStatus, setMigrationStatus] = useState("");
 
   useEffect(() => {
-    setTempoInput(String(options.tempo));
-  }, [options.tempo]);
+    setTempoInput(String(playback.tempo));
+  }, [playback.tempo]);
 
   /**
    * @brief オプション値を更新する
@@ -61,12 +61,14 @@ export function OptionTab() {
       update.rightPatternId = value as string;
     }
     dispatch({ type: "SET_OPTIONS", options: update });
-
-    // テンポ変更は再生状態にも反映
-    if (key === "tempo") {
-      dispatch({ type: "SET_PLAYBACK", playback: { tempo: value as number } });
-    }
   }, [dispatch, options.leftRightLock]);
+
+  /**
+   * @brief テンポを更新する
+   */
+  const updateTempo = useCallback((tempo: number) => {
+    dispatch({ type: "SET_PLAYBACK", playback: { tempo } });
+  }, [dispatch]);
 
   /**
    * @brief テンポをテキスト入力で変更する
@@ -75,9 +77,9 @@ export function OptionTab() {
     setTempoInput(value);
     const num = parseInt(value, 10);
     if (!isNaN(num) && num >= 30 && num <= 300) {
-      updateOption("tempo", num);
+      updateTempo(num);
     }
-  }, [updateOption]);
+  }, [updateTempo]);
 
   /**
    * @brief テンポ計測（タップ間隔の平均値）
@@ -103,7 +105,7 @@ export function OptionTab() {
       const avgInterval = totalInterval / (taps.length - 1);
       const bpm = Math.floor(60000 / avgInterval);
       const clampedBpm = Math.max(30, Math.min(300, bpm));
-      updateOption("tempo", clampedBpm);
+      updateTempo(clampedBpm);
       setTempoInput(String(clampedBpm));
     }
 
@@ -111,7 +113,7 @@ export function OptionTab() {
     if (taps.length > 8) {
       tapTimesRef.current = taps.slice(-8);
     }
-  }, [updateOption]);
+  }, [updateTempo]);
 
   /**
    * @brief localStorageから状態を再同期する
@@ -120,37 +122,36 @@ export function OptionTab() {
     const importedOptions = loadOptions();
     const importedPresets = loadUserPresets();
     const importedLastOpened = loadLastOpened();
+    let nextTempo = playback.tempo;
 
     dispatch({ type: "SET_OPTIONS", options: importedOptions });
-    dispatch({
-      type: "SET_PLAYBACK",
-      playback: {
-        tempo: importedOptions.tempo,
-        isPlaying: false,
-        currentBeat: 0,
-      },
-    });
     dispatch({ type: "SET_USER_PRESETS", presets: importedPresets });
-    dispatch({ type: "SET_LAST_OPENED", info: importedLastOpened });
 
-    if (!importedLastOpened) return;
+    if (!importedLastOpened) {
+      dispatch({ type: "SET_PLAYBACK", playback: { tempo: nextTempo, isPlaying: false, currentBeat: 0 } });
+      return;
+    }
 
     if (importedLastOpened.source === "autosave") {
       const autosave = loadAutosave();
       if (autosave) {
         dispatch({ type: "SET_PROGRESSION", progression: autosave.progression });
         dispatch({ type: "SET_KEY", key: autosave.matrixKey });
+        nextTempo = autosave.tempo;
       }
+      dispatch({ type: "SET_PLAYBACK", playback: { tempo: nextTempo, isPlaying: false, currentBeat: 0 } });
       return;
     }
 
     const sourcePresets = importedLastOpened.source === "system" ? SYSTEM_PRESETS : importedPresets;
     const matched = sourcePresets.find((preset) => preset.id === importedLastOpened.id);
-    if (!matched) return;
-
-    dispatch({ type: "SET_PROGRESSION", progression: { ...matched.progression, cursor: 0 } });
-    dispatch({ type: "SET_KEY", key: matched.matrixKey });
-  }, [dispatch]);
+    if (matched) {
+      dispatch({ type: "SET_PROGRESSION", progression: { ...matched.progression, cursor: 0 } });
+      dispatch({ type: "SET_KEY", key: matched.matrixKey });
+      nextTempo = matched.tempo;
+    }
+    dispatch({ type: "SET_PLAYBACK", playback: { tempo: nextTempo, isPlaying: false, currentBeat: 0 } });
+  }, [dispatch, playback.tempo]);
 
   /**
    * @brief 移行ファイルとして現在データを保存する
@@ -365,7 +366,7 @@ export function OptionTab() {
             onBlur={() => {
               const num = parseInt(tempoInput, 10);
               if (isNaN(num) || num < 30 || num > 300) {
-                setTempoInput(String(options.tempo));
+                setTempoInput(String(playback.tempo));
               }
             }}
             className="w-20 px-2 py-1 border border-[var(--border-color)] bg-white text-center"
