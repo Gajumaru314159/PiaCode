@@ -9,7 +9,7 @@ import { SavePanel } from "./SavePanel";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 const GRID_COLS = 11;
-const GRID_UNIT = "10vw";
+const GRID_UNIT = "9.0909vw";
 const GRID_LIGHT_BORDER = "rgba(120, 170, 220, 0.15)";
 const GRID_CELL_STYLE: React.CSSProperties = {
   width: `calc(${GRID_UNIT} + 1px)`,
@@ -23,7 +23,6 @@ const GRID_ROW_STYLE: React.CSSProperties = {
   display: "flex",
   width: `calc(${GRID_UNIT} * ${GRID_COLS})`,
   height: GRID_UNIT,
-  marginLeft: `calc(${GRID_UNIT} * -0.5)`,
 };
 const GRID_OVERLAY_BASE_STYLE: React.CSSProperties = {
   position: "absolute",
@@ -47,7 +46,7 @@ type GridOverlay = {
 };
 
 /**
- * @brief 11セルを明示生成して、その上に要素を重ねる行コンポーネント
+ * @brief 12セルを明示生成して、その上に要素を重ねる行コンポーネント
  */
 function GridRow({ overlays = [] }: { overlays?: GridOverlay[] }) {
   return (
@@ -289,7 +288,7 @@ export function EditTab() {
       {/* 調号表示（VexFlow） */}
       <KeySignatureDisplay keyRoot={keyRoot} />
 
-      {/* 11列グリッド上のマトリックス入力 */}
+      {/* 12列グリッド上のマトリックス入力 */}
       <div className="shrink-0 mt-2 overflow-x-hidden overflow-y-hidden" style={{ paddingBottom: "1px" }}>
         {/* 上段ルート行（◀ + 7ルート + ▶） */}
         <GridRow
