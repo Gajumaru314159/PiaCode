@@ -369,6 +369,7 @@ function PatternPreview({
         for (let bar = 0; bar < bars; bar++) {
           const x = horizontalPadding + bar * barWidth;
           const y = rowTop;
+          const isLastBar = bar === bars - 1;
           const chordsInBar = Array.from({ length: beatsPerBar }, () => ({ ...previewChord }));
 
           if (showBothClefs) {
@@ -405,6 +406,23 @@ function PatternPreview({
               const connector = new StaveConnector(trebleStave, bassStave);
               connector.setType(StaveConnector.type.BRACE);
               connector.setContext(context).draw();
+            }
+
+            // 小節線を上下譜表で接続
+            const connectorTypes = StaveConnector.type as Record<string, number | undefined>;
+            const singleLeft = connectorTypes.SINGLE_LEFT;
+            if (singleLeft !== undefined) {
+              const leftConnector = new StaveConnector(trebleStave, bassStave);
+              leftConnector.setType(singleLeft);
+              leftConnector.setContext(context).draw();
+            }
+            if (isLastBar) {
+              const singleRight = connectorTypes.SINGLE_RIGHT;
+              if (singleRight !== undefined) {
+                const rightConnector = new StaveConnector(trebleStave, bassStave);
+                rightConnector.setType(singleRight);
+                rightConnector.setContext(context).draw();
+              }
             }
 
             const trebleData = buildVexVoiceData({

@@ -97,6 +97,8 @@ export function SheetMusic({
           const absoluteBarIdx = normalizedStartBar + localBarIdx;
           const row = Math.floor(localBarIdx / barsPerRow);
           const col = localBarIdx % barsPerRow;
+          const rowStartIdx = row * barsPerRow;
+          const barsInRow = Math.min(barsPerRow, displayBars - rowStartIdx);
           const x = sidePadding + col * barWidth;
           const y = topPadding + row * rowHeight;
           const isCurrentBar = absoluteBarIdx === currentBar;
@@ -122,6 +124,23 @@ export function SheetMusic({
             const connector = new StaveConnector(trebleStave, bassStave);
             connector.setType(StaveConnector.type.BRACE);
             connector.setContext(context).draw();
+          }
+
+          // 小節線を上下譜表で接続
+          const connectorTypes = StaveConnector.type as Record<string, number | undefined>;
+          const singleLeft = connectorTypes.SINGLE_LEFT;
+          if (singleLeft !== undefined) {
+            const leftConnector = new StaveConnector(trebleStave, bassStave);
+            leftConnector.setType(singleLeft);
+            leftConnector.setContext(context).draw();
+          }
+          if (col === barsInRow - 1) {
+            const singleRight = connectorTypes.SINGLE_RIGHT;
+            if (singleRight !== undefined) {
+              const rightConnector = new StaveConnector(trebleStave, bassStave);
+              rightConnector.setType(singleRight);
+              rightConnector.setContext(context).draw();
+            }
           }
 
           // 現在再生中の小節をハイライト
