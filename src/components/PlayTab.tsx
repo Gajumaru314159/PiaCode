@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { resolveLoopLengthFromCells } from "@/lib/music";
 import { t } from "@/lib/i18n";
 import { getPattern, midiToFreq } from "@/lib/audio";
+import { withBasePath } from "@/lib/assetPath";
 import {
   generateResolvedBarNotes,
   getBarStartBeat,
@@ -20,7 +21,7 @@ export function PlayTab() {
   const { progression, playback, options } = state;
   const lang = options.language;
   const circleButtonStyle: React.CSSProperties = {
-    backgroundImage: "url('/images/backgrounds/circle.webp')",
+    backgroundImage: `url("${withBasePath("/images/backgrounds/circle.webp")}")`,
     backgroundSize: "contain",
     backgroundRepeat: "no-repeat",
     backgroundPosition: "center",
