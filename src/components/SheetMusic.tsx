@@ -39,6 +39,35 @@ const VEX_KEY_SIGNATURE_MAP: Record<string, string> = {
   B: "B",
 };
 
+const KEY_SIGNATURE_ACCIDENTAL_COUNT: Record<string, number> = {
+  C: 0,
+  G: 1,
+  D: 2,
+  A: 3,
+  E: 4,
+  B: 5,
+  "F#": 6,
+  "C#": 7,
+  F: 1,
+  Bb: 2,
+  Eb: 3,
+  Ab: 4,
+  Db: 5,
+  Gb: 6,
+  Cb: 7,
+};
+
+/**
+ * @brief 調号の個数に応じて、段先頭小節へ追加する幅を返す
+ * @param keySignature VexFlow調号文字列
+ * @returns 追加幅（論理ピクセル）
+ */
+function resolveFirstBarExtraWidth(keySignature: string | null): number {
+  if (!keySignature) return 0;
+  const accidentalCount = KEY_SIGNATURE_ACCIDENTAL_COUNT[keySignature] || 0;
+  return accidentalCount * 12;
+}
+
 /**
  * @brief 小節内のコード表示イベント（表示拍とラベル）を抽出する
  * @param cells 全コードセル
@@ -136,6 +165,7 @@ export function SheetMusic({
         const keyRoot = matrixKeyToPitchClass(matrixKey);
         const accidentalPreference = getAccidentalPreferenceForKey(keyRoot);
         const keySignature = toVexKeySignature(keyRoot);
+        const firstBarExtraWidth = resolveFirstBarExtraWidth(keySignature);
 
         const sidePadding = 20;
         const topPadding = 26;
@@ -144,7 +174,15 @@ export function SheetMusic({
         const activeBarHighlightHeight = 210;
         const widthScale = barsPerRow === 4 ? 2.3 : 1.4;
         const logicalWidth = Math.max(containerWidth * widthScale, sidePadding * 2 + barsPerRow * 140);
-        const barWidth = Math.floor((logicalWidth - sidePadding * 2) / barsPerRow);
+        const rowInnerWidth = logicalWidth - sidePadding * 2;
+        const baseBarWidth = Math.floor(rowInnerWidth / barsPerRow);
+        const minRegularBarWidth = 96;
+        const maxExtraByMinWidth = Math.max(0, rowInnerWidth - minRegularBarWidth * barsPerRow);
+        const appliedFirstBarExtra = Math.min(firstBarExtraWidth, maxExtraByMinWidth);
+        const firstBarWidth = baseBarWidth + appliedFirstBarExtra;
+        const regularBarWidth = barsPerRow > 1
+          ? (rowInnerWidth - firstBarWidth) / (barsPerRow - 1)
+          : firstBarWidth;
         const rows = Math.ceil(displayBars / barsPerRow);
         const totalHeight = Math.max(rows * rowHeight + topPadding + 10, rowHeight);
 
@@ -159,7 +197,10 @@ export function SheetMusic({
           const col = localBarIdx % barsPerRow;
           const rowStartIdx = row * barsPerRow;
           const barsInRow = Math.min(barsPerRow, displayBars - rowStartIdx);
-          const x = sidePadding + col * barWidth;
+          const barWidth = col === 0 ? firstBarWidth : regularBarWidth;
+          const x = col === 0
+            ? sidePadding
+            : sidePadding + firstBarWidth + (col - 1) * regularBarWidth;
           const y = topPadding + row * rowHeight;
           const isCurrentBar = absoluteBarIdx === currentBar;
           const firstBeatIdx = absoluteBarIdx * beatsPerBar;
