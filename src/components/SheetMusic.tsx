@@ -81,7 +81,9 @@ export function SheetMusic({
 
         const sidePadding = 20;
         const topPadding = 26;
-        const rowHeight = 210;
+        const rowHeight = 240;
+        const grandStaffOffsetY = 100;
+        const activeBarHighlightHeight = 210;
         const widthScale = barsPerRow === 4 ? 2.3 : 1.4;
         const logicalWidth = Math.max(containerWidth * widthScale, sidePadding * 2 + barsPerRow * 140);
         const barWidth = Math.floor((logicalWidth - sidePadding * 2) / barsPerRow);
@@ -112,7 +114,7 @@ export function SheetMusic({
           trebleStave.setContext(context).draw();
 
           // ヘ音記号の五線
-          const bassStave = new Stave(x, y + 70, barWidth);
+          const bassStave = new Stave(x, y + grandStaffOffsetY, barWidth);
           if (col === 0) {
             bassStave.addClef("bass");
             bassStave.addTimeSignature(`${beatsPerBar}/4`);
@@ -147,7 +149,7 @@ export function SheetMusic({
           if (isCurrentBar) {
             context.save();
             context.setFillStyle("rgba(120, 120, 120, 0.5)");
-            context.fillRect(x, y, barWidth, 180);
+            context.fillRect(x, y, barWidth, activeBarHighlightHeight);
             context.restore();
           }
 
