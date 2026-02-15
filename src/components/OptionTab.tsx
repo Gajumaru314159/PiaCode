@@ -95,6 +95,7 @@ export function OptionTab() {
     return (
       <PatternPanel
         hand={patternHand}
+        lang={lang}
         onClose={() => setShowPatternPanel(false)}
         currentPatternId={patternHand === "R" ? options.rightPatternId : options.leftPatternId}
         onSelect={(id) => {
@@ -217,6 +218,9 @@ export function OptionTab() {
             className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
             aria-label="右手パターン選択"
           >
+            <div className="px-1 text-left text-xs font-bold">
+              {lang === "ja" ? getPattern(options.rightPatternId).nameJa : getPattern(options.rightPatternId).name}
+            </div>
             <PatternPreview patternId={options.rightPatternId} hand="R" compact />
           </button>
         </div>
@@ -229,6 +233,9 @@ export function OptionTab() {
             className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
             aria-label="左手パターン選択"
           >
+            <div className="px-1 text-left text-xs font-bold">
+              {lang === "ja" ? getPattern(options.leftPatternId).nameJa : getPattern(options.leftPatternId).name}
+            </div>
             <PatternPreview patternId={options.leftPatternId} hand="L" compact />
           </button>
         </div>
@@ -535,11 +542,13 @@ function PatternPreview({
 /** パターン選択パネル（全画面表示） */
 function PatternPanel({
   hand,
+  lang,
   onClose,
   currentPatternId,
   onSelect,
 }: {
   hand: "L" | "R";
+  lang: "ja" | "en" | "zh";
   onClose: () => void;
   currentPatternId: string;
   onSelect: (id: string) => void;
@@ -566,6 +575,9 @@ function PatternPanel({
             }}
             aria-label={`${pattern.nameJa}を選択`}
           >
+            <div className="px-1 text-left text-xs font-bold">
+              {lang === "ja" ? pattern.nameJa : pattern.name}
+            </div>
             <PatternPreview patternId={pattern.id} hand={hand} compact showBothClefs />
           </button>
         ))}
