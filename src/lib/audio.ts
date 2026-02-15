@@ -381,6 +381,33 @@ const imageAccentSyncPattern = definePattern({
 });
 
 /**
+ * @brief ラグタイム
+ */
+const ragtimePattern = definePattern({
+  id: "manual.ragtime",
+  name: "Ragtime",
+  nameJa: "ラグタイム",
+  notesByHand: {
+    R: [
+      N(0,  9, [T(0, 0, 1), T(0, 2, 0)]),
+      N(9,  3, [T(0, 1, 0)]),
+      N(12, 9, [T(1, 2, 0)]),
+      N(21, 3, [T(0, 0, 1), T(0, 2, 0)]),
+      R(24, 9),
+      N(33, 3, [T(0, 2, 0)]),
+      N(36, 9, [T(0, 0, 1), T(0, 2, 0)]),
+      N(45, 3, [T(0, 2, 0)]),
+    ],
+    L: [
+      N(0, 12,  [T(0, 0, -2)]),
+      N(12, 12, [T(1, 0, -1), T(1, 1, -1), T(1, 2, -1)]),
+      N(24, 12,  [T(2, 0, -2)]),
+      N(36, 12, [T(3, 0, -1), T(3, 1, -1), T(3, 2, -1)]),
+    ],
+  },
+});
+
+/**
  * @brief 利用可能なパターン一覧
  */
 export const PATTERNS: PatternDef[] = [
@@ -392,6 +419,7 @@ export const PATTERNS: PatternDef[] = [
   imageChordDotsBassPattern,
   imagePhraseAltBassPattern,
   imageAccentSyncPattern,
+  ragtimePattern,
 ];
 
 const DEFAULT_PATTERN = quarterPulsePattern;
