@@ -554,7 +554,7 @@ function PatternPanel({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: "var(--bg-paper)" }}>
+    <div className="h-full flex flex-col" style={{ background: "var(--bg-paper)" }}>
       <div className="flex justify-end p-4">
         <button
           onClick={onClose}

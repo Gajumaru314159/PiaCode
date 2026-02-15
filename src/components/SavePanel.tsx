@@ -40,7 +40,7 @@ export function SavePanel() {
   };
 
   return (
-    <div className="flex flex-col h-full p-4" style={{ backgroundColor: "var(--bg-paper)" }}>
+    <div className="flex flex-col h-full p-4" style={{ background: "var(--bg-paper)" }}>
       {/* ヘッダー */}
       <div className="flex justify-end mb-4">
         <button

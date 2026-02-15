@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --bg-paper: #D9D9D9;
+  --bg-paper: #D9D9D9 url("/images/backgrounds/paper.webp") repeat;
   --bg-card: #EFEFEF;
   --text-primary: #000000;
   --text-secondary: #555555;
@@ -17,7 +17,7 @@ html, body {
   margin: 0;
   padding: 0;
   font-family: "Courier New", "Courier", monospace;
-  background-color: var(--bg-paper);
+  background: var(--bg-paper);
   color: var(--text-primary);
   overflow: hidden;
   height: 100%;

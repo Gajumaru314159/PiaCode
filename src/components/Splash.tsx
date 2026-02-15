@@ -9,7 +9,7 @@ export function Splash() {
   return (
     <div
       className="flex flex-col items-center justify-center h-full"
-      style={{ backgroundColor: "var(--bg-paper)", zIndex: 10 }}
+      style={{ background: "var(--bg-paper)", zIndex: 10 }}
     >
       <h1
         className="text-5xl font-bold tracking-wide"
