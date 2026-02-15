@@ -58,6 +58,7 @@ export function SheetMusic({
           Formatter,
           StaveConnector,
           Beam,
+          Dot,
           Tuplet,
         } = VexModule.Flow || VexModule;
 
@@ -188,6 +189,7 @@ export function SheetMusic({
           const rightVoiceData = buildVexVoiceData({
             StaveNoteClass: StaveNote,
             BeamClass: Beam,
+            DotClass: Dot,
             TupletClass: Tuplet,
             model: rightModel,
             clef: "treble",
@@ -197,6 +199,7 @@ export function SheetMusic({
           const leftVoiceData = buildVexVoiceData({
             StaveNoteClass: StaveNote,
             BeamClass: Beam,
+            DotClass: Dot,
             TupletClass: Tuplet,
             model: leftModel,
             clef: "bass",

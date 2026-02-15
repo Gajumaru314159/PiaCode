@@ -343,6 +343,7 @@ function PatternPreview({
           Formatter,
           StaveConnector,
           Beam,
+          Dot,
           Tuplet,
         } = VexModule.Flow || VexModule;
 
@@ -428,6 +429,7 @@ function PatternPreview({
             const trebleData = buildVexVoiceData({
               StaveNoteClass: StaveNote,
               BeamClass: Beam,
+              DotClass: Dot,
               TupletClass: Tuplet,
               model: rightModel,
               clef: "treble",
@@ -436,6 +438,7 @@ function PatternPreview({
             const bassData = buildVexVoiceData({
               StaveNoteClass: StaveNote,
               BeamClass: Beam,
+              DotClass: Dot,
               TupletClass: Tuplet,
               model: leftModel,
               clef: "bass",
@@ -476,6 +479,7 @@ function PatternPreview({
             const voiceData = buildVexVoiceData({
               StaveNoteClass: StaveNote,
               BeamClass: Beam,
+              DotClass: Dot,
               TupletClass: Tuplet,
               model: barModel,
               clef,

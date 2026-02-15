@@ -16,6 +16,7 @@ export interface NotationAtom {
   midiNotes: number[];
   isRest: boolean;
   duration: string;
+  dots: number;
   tuplet: TupletKind;
 }
 
@@ -49,18 +50,18 @@ const REST_CHORD: ChordToken = {
   isRest: true,
 };
 
-const DUR_MAP: Record<number, { duration: string; tuplet: TupletKind }> = {
-  48: { duration: "w", tuplet: "none" },
-  36: { duration: "hd", tuplet: "none" },
-  24: { duration: "h", tuplet: "none" },
-  18: { duration: "qd", tuplet: "none" },
-  12: { duration: "q", tuplet: "none" },
-  9: { duration: "8d", tuplet: "none" },
-  6: { duration: "8", tuplet: "none" },
-  4: { duration: "8", tuplet: "8t" },
-  3: { duration: "16", tuplet: "none" },
-  2: { duration: "16", tuplet: "16t" },
-  1: { duration: "32", tuplet: "none" },
+const DUR_MAP: Record<number, { duration: string; dots: number; tuplet: TupletKind }> = {
+  48: { duration: "w", dots: 0, tuplet: "none" },
+  36: { duration: "h", dots: 1, tuplet: "none" },
+  24: { duration: "h", dots: 0, tuplet: "none" },
+  18: { duration: "q", dots: 1, tuplet: "none" },
+  12: { duration: "q", dots: 0, tuplet: "none" },
+  9: { duration: "8", dots: 1, tuplet: "none" },
+  6: { duration: "8", dots: 0, tuplet: "none" },
+  4: { duration: "8", dots: 0, tuplet: "8t" },
+  3: { duration: "16", dots: 0, tuplet: "none" },
+  2: { duration: "16", dots: 0, tuplet: "16t" },
+  1: { duration: "32", dots: 0, tuplet: "none" },
 };
 
 const SPLIT_CANDIDATES = Object.keys(DUR_MAP)
@@ -159,6 +160,7 @@ export function buildBarNotationModel(
         midiNotes: segment.midiNotes,
         isRest: segment.midiNotes.length === 0,
         duration: spec.duration,
+        dots: spec.dots,
         tuplet: spec.tuplet,
       });
       cursor += chunk;
@@ -182,6 +184,8 @@ export function buildVexVoiceData(params: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   BeamClass: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  DotClass: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TupletClass: any;
   model: BarNotationModel;
   clef: "treble" | "bass";
@@ -190,6 +194,7 @@ export function buildVexVoiceData(params: {
   const {
     StaveNoteClass,
     BeamClass,
+    DotClass,
     TupletClass,
     model,
     clef,
@@ -203,7 +208,11 @@ export function buildVexVoiceData(params: {
       ? [restKey]
       : atom.midiNotes.map((midi) => midiToVexKey(midi + midiShift));
     const duration = atom.isRest ? `${atom.duration}r` : atom.duration;
-    return new StaveNoteClass({ keys, duration, clef });
+    const note = new StaveNoteClass({ keys, duration, dots: atom.dots, clef });
+    for (let i = 0; i < atom.dots; i++) {
+      DotClass.buildAndAttach([note], { all: true });
+    }
+    return note;
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
