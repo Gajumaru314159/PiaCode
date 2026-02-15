@@ -106,16 +106,70 @@ export function EditTab() {
   const { progression, options, showSavePanel, currentKey } = state;
   const lang = options.language;
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const matrixAudioCtxRef = useRef<AudioContext | null>(null);
 
   // キー切替
   const keyRoot = ALL_PITCH_CLASSES[currentKey];
   const diatonicRoots = getDiatonicRoots(keyRoot);
+
+  // コンポーネントアンマウント時にオーディオコンテキストを解放
+  useEffect(() => {
+    return () => {
+      if (matrixAudioCtxRef.current) {
+        void matrixAudioCtxRef.current.close();
+        matrixAudioCtxRef.current = null;
+      }
+    };
+  }, []);
+
+  /**
+   * @brief Matrix入力用のオーディオコンテキストを取得する
+   */
+  const getMatrixAudioContext = useCallback((): AudioContext => {
+    if (!matrixAudioCtxRef.current) {
+      matrixAudioCtxRef.current = new AudioContext();
+    }
+    const ctx = matrixAudioCtxRef.current;
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+    return ctx;
+  }, []);
+
+  /**
+   * @brief Matrixクリックで入力するコードを1拍分だけ試聴する
+   */
+  const previewMatrixChord = useCallback((cell: ReturnType<typeof createChordToken>) => {
+    if (cell.isRest || !cell.root) return;
+    const ctx = getMatrixAudioContext();
+    const notes = chordToMidiNotes(cell, 4);
+    const duration = 60 / options.tempo;
+    const time = ctx.currentTime;
+    for (const midi of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const attack = Math.min(0.02, duration * 0.2);
+      const release = Math.min(0.08, duration * 0.25);
+      const releaseStart = Math.max(time + attack, time + duration - release);
+      osc.type = "triangle";
+      osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.linearRampToValueAtTime(0.2, time + attack);
+      gain.gain.setValueAtTime(0.2, releaseStart);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + duration + 0.01);
+    }
+  }, [getMatrixAudioContext, options.tempo]);
 
   /**
    * @brief コードセルにコードを入力する
    */
   const inputChord = useCallback((root: PitchClass, quality: ChordQuality) => {
     const cell = createChordToken(root, quality);
+    previewMatrixChord(cell);
     const cursor = progression.cursor;
     dispatch({ type: "SET_CELL", index: cursor, cell });
     // カーソルを1つ進める
@@ -125,7 +179,7 @@ export function EditTab() {
       dispatch({ type: "EXPAND_CELLS", minLength: nextCursor + 1 });
     }
     dispatch({ type: "SET_CURSOR", cursor: nextCursor });
-  }, [progression.cursor, progression.cells.length, dispatch]);
+  }, [progression.cursor, progression.cells.length, dispatch, previewMatrixChord]);
 
   /**
    * @brief 休符を入力する
@@ -463,6 +517,55 @@ function ChordGrid() {
   }, []);
 
   /**
+   * @brief オーディオコンテキストを取得し、必要に応じて再開する
+   */
+  const getAudioContext = useCallback((): AudioContext => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext();
+    }
+    const ctx = audioCtxRef.current;
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+    return ctx;
+  }, []);
+
+  /**
+   * @brief MIDIノート配列を短く発音する
+   */
+  const triggerMidiNotes = useCallback((notes: number[], duration: number) => {
+    const ctx = getAudioContext();
+    const time = ctx.currentTime;
+    for (const midi of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const attack = Math.min(0.02, duration * 0.2);
+      const release = Math.min(0.08, duration * 0.25);
+      const releaseStart = Math.max(time + attack, time + duration - release);
+      osc.type = "triangle";
+      osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.linearRampToValueAtTime(0.2, time + attack);
+      gain.gain.setValueAtTime(0.2, releaseStart);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + duration + 0.01);
+    }
+  }, [getAudioContext]);
+
+  /**
+   * @brief セルのコードを1拍分だけ試聴する
+   */
+  const previewCellChord = useCallback((cell: typeof cells[number]) => {
+    if (cell.isRest || !cell.root) return;
+    const notes = chordToMidiNotes(cell, 4);
+    const beatDuration = 60 / state.options.tempo;
+    triggerMidiNotes(notes, beatDuration);
+  }, [state.options.tempo, triggerMidiNotes]);
+
+  /**
    * @brief 小節番号タップで該当段を1回再生する
    */
   const playRow = useCallback((rowStart: number) => {
@@ -473,12 +576,7 @@ function ChordGrid() {
       playingRowRef.current = null;
       return;
     }
-
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new AudioContext();
-    }
-    const ctx = audioCtxRef.current;
-    if (ctx.state === "suspended") ctx.resume();
+    getAudioContext();
 
     const visibleCells = beatsPerBar === 3 ? 6 : 8;
     const tempo = state.options.tempo;
@@ -497,32 +595,14 @@ function ChordGrid() {
       const cell = cells[cellIdx];
       if (cell && !cell.isRest && cell.root) {
         const notes = chordToMidiNotes(cell, 4);
-        const time = ctx.currentTime;
-        for (const midi of notes) {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          const duration = beatDuration;
-          const attack = Math.min(0.02, duration * 0.2);
-          const release = Math.min(0.08, duration * 0.25);
-          const releaseStart = Math.max(time + attack, time + duration - release);
-          osc.type = "triangle";
-          osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
-          gain.gain.setValueAtTime(0.0001, time);
-          gain.gain.linearRampToValueAtTime(0.2, time + attack);
-          gain.gain.setValueAtTime(0.2, releaseStart);
-          gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(time);
-          osc.stop(time + duration + 0.01);
-        }
+        triggerMidiNotes(notes, beatDuration);
       }
       beatIdx++;
     };
 
     scheduleNext();
     playTimerRef.current = window.setInterval(scheduleNext, beatDuration * 1000);
-  }, [cells, beatsPerBar, state.options.tempo]);
+  }, [cells, beatsPerBar, state.options.tempo, getAudioContext, triggerMidiNotes]);
 
   // 8セル1段
   const cellsPerRow = 8;
@@ -591,7 +671,10 @@ function ChordGrid() {
                   content: display,
                   asButton: true,
                   ariaLabel: `セル ${idx}: ${display || "空"}`,
-                  onClick: () => dispatch({ type: "SET_CURSOR", cursor: idx }),
+                  onClick: () => {
+                    dispatch({ type: "SET_CURSOR", cursor: idx });
+                    previewCellChord(cell);
+                  },
                   className: "flex items-center justify-center border border-black text-[0.66rem] font-bold leading-none tracking-tight whitespace-nowrap px-0.5 transition-colors",
                   style: { backgroundColor: isCursor ? "var(--cursor-bg)" : "transparent" },
                 };
