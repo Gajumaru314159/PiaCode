@@ -49,6 +49,8 @@ export function AppShell() {
                 fontSize: "1rem",
                 fontWeight: 700,
                 transform: isActive ? "translateY(-2px)" : "translateY(-10px)",
+                borderBottom: "1px solid rgba(0, 0, 0, 0.2)",
+                borderRight: "1px solid rgba(0, 0, 0, 0.1)",
                 zIndex: isActive ? 1 : 2,
               }}
             >
