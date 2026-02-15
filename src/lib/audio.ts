@@ -15,7 +15,6 @@ const DEFAULT_VELOCITY = 0.7;
  * @brief パターン内の音参照
  */
 export interface ToneRef {
-  chordIndex: number;
   degreeIndex: number;
   octaveShift: number;
   semitoneShift?: number;
@@ -25,8 +24,9 @@ export interface ToneRef {
  * @brief パターン定義用ノートトークン
  */
 export interface PatternNoteToken {
-  startTick: number;
   durationTick: number;
+  // nullの場合は休符として扱う
+  chordIndex: number | null;
   // tonesが空配列の場合は休符として扱う
   tones: ToneRef[];
   velocity?: number;
@@ -74,35 +74,35 @@ export function midiToFreq(midi: number): number {
  * @brief パターン定義ヘルパー（1音トークン）
  */
 const N = (
-  startTick: number,
   durationTick: number,
+  chordIndex: number,
   tones: ToneRef[],
   velocity?: number
-): PatternNoteToken => ({ startTick, durationTick, tones, velocity });
+): PatternNoteToken => ({ durationTick, chordIndex, tones, velocity });
 
 /**
  * @brief パターン定義ヘルパー（休符トークン）
  */
-const R = (
-  startTick: number,
-  durationTick: number
-): PatternNoteToken => ({ startTick, durationTick, tones: [] });
+const R = (durationTick: number): PatternNoteToken => ({ durationTick, chordIndex: null, tones: [] });
 
 /**
- * @brief コード参照ヘルパー
+ * @brief 音参照ヘルパー
  */
 const T = (
-  chordIndex: number,
   degreeIndex: number,
   octaveShift: number,
   semitoneShift?: number
-): ToneRef => ({ chordIndex, degreeIndex, octaveShift, semitoneShift });
+): ToneRef => ({ degreeIndex, octaveShift, semitoneShift });
 
 /**
  * @brief ToneRefからMIDIノートを解決する
  */
-export function resolveToneRef(chordsInBar: ChordToken[], tone: ToneRef): number | null {
-  const chord = chordsInBar[tone.chordIndex];
+export function resolveToneRef(
+  chordsInBar: ChordToken[],
+  chordIndex: number,
+  tone: ToneRef
+): number | null {
+  const chord = chordsInBar[chordIndex];
   if (!chord || chord.isRest) return null;
 
   const notes = chordToMidiNotes(chord, 4);
@@ -116,24 +116,29 @@ export function resolveToneRef(chordsInBar: ChordToken[], tone: ToneRef): number
 }
 
 /**
- * @brief パターントークン列を小節ノート列へ解決する
+ * @brief パターントークン列（duration累積）を小節ノート列へ解決する
  */
 export function resolveBarPattern(input: PatternBarInput, tokens: PatternNoteToken[]): ResolvedPatternNote[] {
   const barTicks = input.beatsPerBar * TICKS_PER_BEAT;
+  let cursorTick = 0;
 
   return tokens
     .map((token) => {
-      const clampedStart = Math.max(0, Math.floor(token.startTick));
-      const rawEnd = clampedStart + Math.max(0, Math.floor(token.durationTick));
+      const clampedStart = Math.max(0, Math.floor(cursorTick));
+      const tokenDurationTick = Math.max(0, Math.floor(token.durationTick));
+      const rawEnd = clampedStart + tokenDurationTick;
+      cursorTick += tokenDurationTick;
       const clampedEnd = Math.min(barTicks, rawEnd);
       const durationTick = clampedEnd - clampedStart;
       if (durationTick <= 0 || clampedStart >= barTicks) return null;
 
       const midiSet = new Set<number>();
-      for (const tone of token.tones) {
-        const midi = resolveToneRef(input.chordsInBar, tone);
-        if (midi !== null) {
-          midiSet.add(midi);
+      if (token.chordIndex !== null) {
+        for (const tone of token.tones) {
+          const midi = resolveToneRef(input.chordsInBar, token.chordIndex, tone);
+          if (midi !== null) {
+            midiSet.add(midi);
+          }
         }
       }
 
@@ -174,14 +179,14 @@ const quarterPulsePattern = definePattern({
     // *   *   *   *   
     // *       *        
     R: [
-      N(0, 12,  [T(0, 0, 0), T(0, 1, 0), T(0, 2, 0)]),
-      N(12, 12, [T(1, 0, 0), T(1, 1, 0), T(1, 2, 0)]),
-      N(24, 12, [T(2, 0, 0), T(2, 1, 0), T(2, 2, 0)]),
-      N(36, 12, [T(3, 0, 0), T(3, 1, 0), T(3, 2, 0)]),
+      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
     ],
     L: [
-      N(0,  24, [T(0, 0, -1), T(0, 0, -2)]),
-      N(24, 24, [T(2, 0, -1), T(2, 0, -2)]),
+      N(24, 0, [T(0, -1), T(0, -2)]),
+      N(24, 2, [T(0, -1), T(0, -2)]),
     ],
   },
 });
@@ -197,20 +202,20 @@ const eighthBassPulsePattern = definePattern({
     // *   *   *   *   
     // * * * * * * * *  
     R: [
-      N(0, 12,  [T(0, 1, 0), T(0, 2, 0), T(0, 0, 1)]),
-      N(12, 12, [T(1, 1, 0), T(1, 2, 0), T(1, 0, 1)]),
-      N(24, 12, [T(2, 1, 0), T(2, 2, 0), T(2, 0, 1)]),
-      N(36, 12, [T(3, 1, 0), T(3, 2, 0), T(3, 0, 1)]),
+      N(12, 0, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(12, 1, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(12, 2, [T(1, 0), T(2, 0), T(0, 1)]),
+      N(12, 3, [T(1, 0), T(2, 0), T(0, 1)]),
     ],
     L: [
-      N(0,  6, [T(0, 0, -2)]),
-      N(6,  6, [T(0, 0, -1)]),
-      N(12, 6, [T(1, 0, -2)]),
-      N(18, 6, [T(1, 0, -1)]),
-      N(24, 6, [T(2, 0, -2)]),
-      N(30, 6, [T(2, 0, -1)]),
-      N(36, 6, [T(3, 0, -2)]),
-      N(42, 6, [T(3, 0, -1)]),
+      N(6, 0, [T(0, -2)]),
+      N(6, 0, [T(0, -1)]),
+      N(6, 1, [T(0, -2)]),
+      N(6, 1, [T(0, -1)]),
+      N(6, 2, [T(0, -2)]),
+      N(6, 2, [T(0, -1)]),
+      N(6, 3, [T(0, -2)]),
+      N(6, 3, [T(0, -1)]),
     ],
   },
 });
@@ -226,18 +231,18 @@ const halfChordRisePattern = definePattern({
     // *       *       
     // * * * * * * * *  
     R: [
-      N(0,  24, [T(0, 0, 0), T(0, 1, 0), T(0, 2, 0)]),
-      N(24, 24, [T(2, 0, 0), T(2, 1, 0), T(2, 2, 0)]),
+      N(24, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(24, 2, [T(0, 0), T(1, 0), T(2, 0)]),
     ],
     L: [
-      N(0,  6, [T(0, 0, -2)]),
-      N(6,  6, [T(0, 1, -2)]),
-      N(12, 6, [T(1, 2, -2)]),
-      N(18, 6, [T(1, 0, -1)]),
-      N(24, 6, [T(2, 0, -2)]),
-      N(30, 6, [T(2, 1, -2)]),
-      N(36, 6, [T(3, 2, -2)]),
-      N(42, 6, [T(3, 0, -1)]),
+      N(6, 0, [T(0, -2)]),
+      N(6, 0, [T(1, -2)]),
+      N(6, 1, [T(2, -2)]),
+      N(6, 1, [T(0, -1)]),
+      N(6, 2, [T(0, -2)]),
+      N(6, 2, [T(1, -2)]),
+      N(6, 3, [T(2, -2)]),
+      N(6, 3, [T(0, -1)]),
     ],
   },
 });
@@ -253,20 +258,20 @@ const restOffbeatCompPattern = definePattern({
     // - * - * - * - *
     // *   -   *   -
     R: [
-      R(0, 6),
-      N(6, 6, [T(0, 1, 0), T(0, 2, 0), T(0, 0, 1)]),
-      R(12, 6),
-      N(18, 6, [T(1, 1, 0), T(1, 2, 0), T(1, 0, 1)]),
-      R(24, 6),
-      N(30, 6, [T(2, 1, 0), T(2, 2, 0), T(2, 0, 1)]),
-      R(36, 6),
-      N(42, 6, [T(3, 1, 0), T(3, 2, 0), T(3, 0, 1)]),
+      R(6),
+      N(6, 0, [T(1, 0), T(2, 0), T(0, 1)]),
+      R(6),
+      N(6, 1, [T(1, 0), T(2, 0), T(0, 1)]),
+      R(6),
+      N(6, 2, [T(1, 0), T(2, 0), T(0, 1)]),
+      R(6),
+      N(6, 3, [T(1, 0), T(2, 0), T(0, 1)]),
     ],
     L: [
-      N(0, 18, [T(0, 0, -2), T(0, 0, -1)]),
-      R(18, 6),
-      N(24, 18, [T(2, 0, -2), T(2, 0, -1)]),
-      R(42, 6),
+      N(18, 0, [T(0, -2), T(0, -1)]),
+      R(6),
+      N(18, 2, [T(0, -2), T(0, -1)]),
+      R(6),
     ],
   },
 });
@@ -282,22 +287,22 @@ const restCallResponsePattern = definePattern({
     // *   -   * - * -
     // * - * - * - * -
     R: [
-      N(0, 12, [T(0, 0, 0), T(0, 1, 0), T(0, 2, 0)]),
-      R(12, 12),
-      N(24, 6, [T(2, 0, 0), T(2, 1, 0), T(2, 2, 0)]),
-      R(30, 6),
-      N(36, 6, [T(3, 0, 0), T(3, 1, 0), T(3, 2, 0)]),
-      R(42, 6),
+      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+      R(12),
+      N(6, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      R(6),
+      N(6, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      R(6),
     ],
     L: [
-      N(0, 6, [T(0, 0, -2)]),
-      R(6, 6),
-      N(12, 6, [T(1, 0, -2)]),
-      R(18, 6),
-      N(24, 6, [T(2, 0, -2)]),
-      R(30, 6),
-      N(36, 6, [T(3, 0, -2)]),
-      R(42, 6),
+      N(6, 0, [T(0, -2)]),
+      R(6),
+      N(6, 1, [T(0, -2)]),
+      R(6),
+      N(6, 2, [T(0, -2)]),
+      R(6),
+      N(6, 3, [T(0, -2)]),
+      R(6),
     ],
   },
 });
@@ -313,16 +318,16 @@ const imageChordDotsBassPattern = definePattern({
     // *   *   *   *   
     // *     * *     *  
     R: [
-      N(0,  12, [T(0, 0, 0), T(0, 1, 0), T(0, 2, 0)]),
-      N(12, 12, [T(1, 0, 0), T(1, 1, 0), T(1, 2, 0)]),
-      N(24, 12, [T(2, 0, 0), T(2, 1, 0), T(2, 2, 0)]),
-      N(36, 12, [T(3, 0, 0), T(3, 1, 0), T(3, 2, 0)]),
+      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
     ],
     L: [
-      N(0,  18, [T(0, 0, -2),T(0, 0, -1)]),
-      N(18, 6,  [T(1, 0, -2),T(1, 0, -1)]),
-      N(24, 18, [T(2, 0, -2),T(2, 0, -1)]),
-      N(42, 6,  [T(3, 0, -2),T(3, 0, -1)]),
+      N(18, 0, [T(0, -2),T(0, -1)]),
+      N(6, 1, [T(0, -2),T(0, -1)]),
+      N(18, 2, [T(0, -2),T(0, -1)]),
+      N(6, 3, [T(0, -2),T(0, -1)]),
     ],
   },
 });
@@ -336,20 +341,20 @@ const imagePhraseAltBassPattern = definePattern({
   nameJa: "フレーズ+交互ベース",
   notesByHand: {
     R: [
-      N(0,  6, [T(0, 0, 1), T(0, 2, 0)]),
-      N(6,  6, [T(0, 1, 0)]),
-      N(12, 6, [T(1, 2, 0)]),
-      N(18, 6, [T(1, 0, 1), T(1, 2, 0)]),
-      N(24, 6, [T(2, 1, 1), T(2, 0, 1)]),
-      N(30, 6, [T(2, 2, 0)]),
-      N(36, 6, [T(3, 0, 1)]),
-      N(42, 6, [T(3, 1, 1), T(3, 0, 1)]),
+      N(6, 0, [T(0, 1), T(2, 0)]),
+      N(6, 0, [T(1, 0)]),
+      N(6, 1, [T(2, 0)]),
+      N(6, 1, [T(0, 1), T(2, 0)]),
+      N(6, 2, [T(1, 1), T(0, 1)]),
+      N(6, 2, [T(2, 0)]),
+      N(6, 3, [T(0, 1)]),
+      N(6, 3, [T(1, 1), T(0, 1)]),
     ],
     L: [
-      N(0, 12,  [T(0, 0, -1), T(0, 1, -1), T(0, 2, -1)]),
-      N(12, 12, [T(1, 0, -1), T(1, 1, -1), T(1, 2, -1)]),
-      N(24, 12, [T(2, 0, -1), T(2, 1, -1), T(2, 2, -1)]),
-      N(36, 12, [T(3, 0, -1), T(3, 1, -1), T(3, 2, -1)]),
+      N(12, 0, [T(0, -1), T(1, -1), T(2, -1)]),
+      N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
+      N(12, 2, [T(0, -1), T(1, -1), T(2, -1)]),
+      N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
     ],
   },
 });
@@ -363,19 +368,19 @@ const imageAccentSyncPattern = definePattern({
   nameJa: "アクセントシンク",
   notesByHand: {
     R: [
-      N(0, 12, [T(0, 0, 0), T(0, 1, 0), T(0, 2, 0)]),
-      N(12, 9, [T(1, 0, 0), T(1, 2, 0)]),
-      N(21, 3, [T(1, 1, 0), T(1, 2, 0)]),
-      N(24, 12, [T(2, 0, 0), T(2, 1, 0), T(2, 2, 0)]),
-      N(36, 9, [T(3, 0, 0), T(3, 2, 0)]),
-      N(45, 3, [T(3, 1, 0), T(3, 2, 0)]),
+      N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(9, 1, [T(0, 0), T(2, 0)]),
+      N(3, 1, [T(1, 0), T(2, 0)]),
+      N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      N(9, 3, [T(0, 0), T(2, 0)]),
+      N(3, 3, [T(1, 0), T(2, 0)]),
     ],
     L: [
-      N(0, 18, [T(0, 0, -2),T(0, 0, -1)]),
-      N(18, 6, [T(1, 0, -2),T(1, 0, -1)]),
-      N(24, 6, [T(2, 0, -2),T(2, 0, -1)]),
-      N(30, 12,[T(2, 0, -2),T(2, 0, -1)]),
-      N(42, 6, [T(3, 0, -2),T(3, 0, -1)]),
+      N(18, 0, [T(0, -2),T(0, -1)]),
+      N(6, 1, [T(0, -2),T(0, -1)]),
+      N(6, 2, [T(0, -2),T(0, -1)]),
+      N(12, 2, [T(0, -2),T(0, -1)]),
+      N(6, 3, [T(0, -2),T(0, -1)]),
     ],
   },
 });
@@ -389,20 +394,20 @@ const ragtimePattern = definePattern({
   nameJa: "ラグタイム",
   notesByHand: {
     R: [
-      N(0,  9, [T(0, 0, 1), T(0, 2, 0)]),
-      N(9,  3, [T(0, 1, 0)]),
-      N(12, 9, [T(1, 2, 0)]),
-      N(21, 3, [T(1, 0, 1), T(1, 2, 0)]),
-      R(24, 9),
-      N(33, 3, [T(2, 2, 0)]),
-      N(36, 9, [T(3, 0, 1), T(3, 2, 0)]),
-      N(45, 3, [T(3, 2, 0)]),
+      N(9, 0, [T(0, 1), T(2, 0)]),
+      N(3, 0, [T(1, 0)]),
+      N(9, 1, [T(2, 0)]),
+      N(3, 1, [T(0, 1), T(2, 0)]),
+      R(9),
+      N(3, 2, [T(2, 0)]),
+      N(9, 3, [T(0, 1), T(2, 0)]),
+      N(3, 3, [T(2, 0)]),
     ],
     L: [
-      N(0, 12,  [T(0, 0, -2)]),
-      N(12, 12, [T(1, 0, -1), T(1, 1, -1), T(1, 2, -1)]),
-      N(24, 12,  [T(2, 0, -2)]),
-      N(36, 12, [T(3, 0, -1), T(3, 1, -1), T(3, 2, -1)]),
+      N(12, 0, [T(0, -2)]),
+      N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
+      N(12, 2, [T(0, -2)]),
+      N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
     ],
   },
 });
