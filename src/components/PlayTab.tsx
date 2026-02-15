@@ -19,6 +19,12 @@ export function PlayTab() {
   const { state, dispatch } = useApp();
   const { progression, playback, options } = state;
   const lang = options.language;
+  const circleButtonStyle: React.CSSProperties = {
+    backgroundImage: "url('/images/backgrounds/circle.webp')",
+    backgroundSize: "contain",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+  };
 
   const loopLength = resolveLoopLengthFromCells(progression.cells, progression.beatsPerBar);
 
@@ -309,7 +315,8 @@ export function PlayTab() {
         <button
           aria-label={playback.isPlaying ? "停止" : "再生"}
           onClick={togglePlay}
-          className="w-14 h-14 rounded-full border-2 border-[var(--border-color)] bg-white flex items-center justify-center"
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={circleButtonStyle}
         >
           <PlayIcon isPlaying={playback.isPlaying} />
         </button>
@@ -318,8 +325,8 @@ export function PlayTab() {
         <button
           aria-label={playback.isLoop ? "ループOFF" : "ループON"}
           onClick={() => dispatch({ type: "SET_PLAYBACK", playback: { isLoop: !playback.isLoop } })}
-          className="w-14 h-14 rounded-full border-2 border-[var(--border-color)] bg-white flex items-center justify-center"
-          style={{ opacity: playback.isLoop ? 1 : 0.4 }}
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ ...circleButtonStyle, opacity: playback.isLoop ? 1 : 0.4 }}
         >
           <LoopIcon />
         </button>
@@ -328,8 +335,8 @@ export function PlayTab() {
         <button
           aria-label={playback.isMetronomeOn ? "メトロノームOFF" : "メトロノームON"}
           onClick={() => dispatch({ type: "SET_PLAYBACK", playback: { isMetronomeOn: !playback.isMetronomeOn } })}
-          className="w-14 h-14 rounded-full border-2 border-[var(--border-color)] bg-white flex items-center justify-center"
-          style={{ opacity: playback.isMetronomeOn ? 1 : 0.4 }}
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ ...circleButtonStyle, opacity: playback.isMetronomeOn ? 1 : 0.4 }}
         >
           <MetronomeIcon />
         </button>
