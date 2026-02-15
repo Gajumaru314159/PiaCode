@@ -1,9 +1,9 @@
-# PiaCode
+# PiaChord
 
-PiaCode は、モバイルファーストのピアノ用コード進行学習アプリです。  
+PiaChord は、モバイルファーストのピアノ用コード進行学習アプリです。  
 コード進行をグリッドで編集し、譜面（VexFlow）で確認しながら、伴奏パターン付きで再生できます。
 
-- 公開URL: https://gajumaru314159.github.io/PiaCode/
+- 公開URL: https://gajumaru314159.github.io/PiaChord/
 - 仕様書: `doc/spec.md`
 
 ## 主な機能
@@ -109,10 +109,10 @@ npm install
 
 ## データ保存（LocalStorage）
 
-- `piacode.progression.autosave`
-- `piacode.progression.userPresets`
-- `piacode.options.current`
-- `piacode.progression.lastOpened`
+- `piachord.progression.autosave`
+- `piachord.progression.userPresets`
+- `piachord.options.current`
+- `piachord.progression.lastOpened`
 
 ## ディレクトリ概要（`src/`）
 

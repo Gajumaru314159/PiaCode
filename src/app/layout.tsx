@@ -4,7 +4,7 @@ import { withBasePath } from "@/lib/assetPath";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PiaCode",
+  title: "PiaChord",
   description: "ピアノコード進行学習アプリ",
 };
 

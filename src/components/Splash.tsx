@@ -11,7 +11,7 @@ export function Splash() {
     <div className="h-full w-full overflow-hidden" style={{ zIndex: 10 }}>
       <img
         src={withBasePath("/images/splash.webp")}
-        alt="PiaCode スプラッシュ"
+        alt="PiaChord スプラッシュ"
         className="h-full w-full object-cover object-center"
       />
     </div>

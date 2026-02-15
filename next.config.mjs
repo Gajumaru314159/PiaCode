@@ -1,4 +1,4 @@
-const REPO_NAME = "PiaCode";
+const REPO_NAME = "PiaChord";
 const basePath = process.env.NODE_ENV === "production" ? `/${REPO_NAME}` : "";
 
 /** @type {import('next').NextConfig} */

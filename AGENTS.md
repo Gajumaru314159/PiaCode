@@ -1,6 +1,6 @@
 ## プロジェクト概要
 
-PiaCode は、モバイルファーストのピアノ用コード進行学習アプリです。ユーザーはマトリクス入力でコード進行を視覚的に編集し、楽譜（VexFlow）として確認し、音声（Tone.js）で再生できます。GitHub Pages（https://gajumaru314159.github.io/PiaCode/）で公開しています。
+PiaChord は、モバイルファーストのピアノ用コード進行学習アプリです。ユーザーはマトリクス入力でコード進行を視覚的に編集し、楽譜（VexFlow）として確認し、音声（Tone.js）で再生できます。GitHub Pages（https://gajumaru314159.github.io/PiaChord/）で公開しています。
 
 ## 仕様書
 
@@ -43,7 +43,7 @@ PiaCode は、モバイルファーストのピアノ用コード進行学習ア
 
 - 1 セル = 1 拍。セルは 8 セル単位の行（1 段）で保持。
 - 3/4 拍子では各行の 7-8 拍目を非表示（データは保持）。
-- LocalStorage キーは `piacode.<domain>.<name>` 命名規則に従う。
+- LocalStorage キーは `piachord.<domain>.<name>` 命名規則に従う。
 
 ### UI パターン
 

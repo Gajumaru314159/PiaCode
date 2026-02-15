@@ -4,14 +4,14 @@ import { SUPPORTED_LANGUAGES } from "./i18n";
 
 /** LocalStorageキー定義 */
 const KEYS = {
-  autosave: "piacode.progression.autosave",
-  userPresets: "piacode.progression.userPresets",
-  options: "piacode.options.current",
-  lastOpened: "piacode.progression.lastOpened",
+  autosave: "piachord.progression.autosave",
+  userPresets: "piachord.progression.userPresets",
+  options: "piachord.options.current",
+  lastOpened: "piachord.progression.lastOpened",
 } as const;
 
-const STORAGE_PREFIX = "piacode.";
-const MIGRATION_FILE_MAGIC = "piacode-storage";
+const STORAGE_PREFIX = "piachord.";
+const MIGRATION_FILE_MAGIC = "piachord-storage";
 const MIGRATION_FILE_VERSION = 1;
 export const DEFAULT_TEMPO = 120;
 

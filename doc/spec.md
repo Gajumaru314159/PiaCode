@@ -39,12 +39,12 @@
 
 ## 保存データの命名規則
 
-- LocalStorageキーは `piacode.<domain>.<name>` 形式
+- LocalStorageキーは `piachord.<domain>.<name>` 形式
 - 予約キー:
-  - `piacode.progression.autosave`
-  - `piacode.progression.userPresets`
-  - `piacode.options.current`
-  - `piacode.progression.lastOpened`
+  - `piachord.progression.autosave`
+  - `piachord.progression.userPresets`
+  - `piachord.options.current`
+  - `piachord.progression.lastOpened`
 - 名前付き保存名の予約語は `system.` プレフィックスと重複不可
 
 ## エラーハンドリング方針
@@ -74,7 +74,7 @@
 
 ## 入力
 
-- LocalStorageの `piacode.progression.lastOpened`
+- LocalStorageの `piachord.progression.lastOpened`
 
 ## 処理
 
@@ -168,9 +168,9 @@
 
 ### 保存
 
-- 自動保存: `piacode.progression.autosave`
-- 名前付き保存: `piacode.progression.userPresets`
-- 最終編集対象: `piacode.progression.lastOpened`
+- 自動保存: `piachord.progression.autosave`
+- 名前付き保存: `piachord.progression.userPresets`
+- 最終編集対象: `piachord.progression.lastOpened`
 
 ### 例外時挙動
 
@@ -215,8 +215,8 @@
 
 ### 保存
 
-- 削除時に `piacode.progression.userPresets` を更新する
-- 選択時に `piacode.progression.lastOpened` を更新する
+- 削除時に `piachord.progression.userPresets` を更新する
+- 選択時に `piachord.progression.lastOpened` を更新する
 
 ### 例外時挙動
 
@@ -278,7 +278,7 @@
 ### 保存
 
 - 再生状態は永続化しない
-- 最終シーク位置は `piacode.progression.lastOpened` 内のメタ情報として保存可能
+- 最終シーク位置は `piachord.progression.lastOpened` 内のメタ情報として保存可能
 
 ### 例外時挙動
 
@@ -339,7 +339,7 @@
 
 ### 保存
 
-- `piacode.options.current` に即時保存する
+- `piachord.options.current` に即時保存する
 
 ### 例外時挙動
 
@@ -464,10 +464,10 @@ interface PatternRenderResult {
 }
 
 interface StorageKeys {
-  autosave: "piacode.progression.autosave";
-  userPresets: "piacode.progression.userPresets";
-  options: "piacode.options.current";
-  lastOpened: "piacode.progression.lastOpened";
+  autosave: "piachord.progression.autosave";
+  userPresets: "piachord.progression.userPresets";
+  options: "piachord.options.current";
+  lastOpened: "piachord.progression.lastOpened";
 }
 ```
 
