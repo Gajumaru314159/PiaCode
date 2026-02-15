@@ -1,4 +1,5 @@
 import { AppOptions, Progression, SavedProgression } from "@/types/music";
+import { getDefaultPatternId, isValidPatternId } from "./audio";
 
 /** LocalStorageキー定義 */
 const KEYS = {
@@ -7,6 +8,17 @@ const KEYS = {
   options: "piacode.options.current",
   lastOpened: "piacode.progression.lastOpened",
 } as const;
+
+const STORAGE_PREFIX = "piacode.";
+const MIGRATION_FILE_MAGIC = "piacode-storage";
+const MIGRATION_FILE_VERSION = 1;
+
+interface MigrationFileData {
+  magic: string;
+  version: number;
+  exportedAt: string;
+  entries: Record<string, string>;
+}
 
 /**
  * @brief JSONをLocalStorageに安全に保存する
@@ -145,8 +157,8 @@ export const DEFAULT_OPTIONS: AppOptions = {
   audioTrack: "both",
   metronomeVolume: 0.5,
   leftRightLock: true,
-  leftPatternId: "whole",
-  rightPatternId: "whole",
+  leftPatternId: getDefaultPatternId(),
+  rightPatternId: getDefaultPatternId(),
   tempo: 120,
   language: "ja",
 };
@@ -173,8 +185,85 @@ export function loadOptions(): AppOptions {
   merged.rowCount = Math.min(6, Math.max(1, Number(merged.rowCount) || DEFAULT_OPTIONS.rowCount));
   merged.metronomeVolume = Math.min(1, Math.max(0, Number(merged.metronomeVolume) || 0));
   merged.tempo = Math.min(300, Math.max(30, Number(merged.tempo) || DEFAULT_OPTIONS.tempo));
+  if (!isValidPatternId(merged.leftPatternId)) {
+    merged.leftPatternId = DEFAULT_OPTIONS.leftPatternId;
+  }
+  if (!isValidPatternId(merged.rightPatternId)) {
+    merged.rightPatternId = DEFAULT_OPTIONS.rightPatternId;
+  }
 
   return merged;
+}
+
+/**
+ * @brief 移行用のLocalStorageスナップショットを生成する
+ * @returns 移行ファイル(JSON文字列)と対象件数
+ */
+export function exportStorageMigrationData(): { text: string; count: number } {
+  const entries: Record<string, string> = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(STORAGE_PREFIX)) continue;
+    const value = localStorage.getItem(key);
+    if (value === null) continue;
+    entries[key] = value;
+  }
+  const payload: MigrationFileData = {
+    magic: MIGRATION_FILE_MAGIC,
+    version: MIGRATION_FILE_VERSION,
+    exportedAt: new Date().toISOString(),
+    entries,
+  };
+  return {
+    text: JSON.stringify(payload),
+    count: Object.keys(entries).length,
+  };
+}
+
+function isMigrationFileData(value: unknown): value is MigrationFileData {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Partial<MigrationFileData>;
+  if (record.magic !== MIGRATION_FILE_MAGIC) return false;
+  if (record.version !== MIGRATION_FILE_VERSION) return false;
+  if (!record.entries || typeof record.entries !== "object") return false;
+  return Object.entries(record.entries).every(([k, v]) => {
+    return typeof k === "string" && k.startsWith(STORAGE_PREFIX) && typeof v === "string";
+  });
+}
+
+/**
+ * @brief 移行ファイル(JSON文字列)からLocalStorageを復元する
+ * @param text 移行ファイルのテキスト内容
+ * @returns 復元したキー件数
+ * @throws Error フォーマット不正時
+ */
+export function importStorageMigrationData(text: string): number {
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("invalid-json");
+  }
+  if (!isMigrationFileData(parsed)) {
+    throw new Error("invalid-format");
+  }
+
+  const keysToClear: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(STORAGE_PREFIX)) {
+      keysToClear.push(key);
+    }
+  }
+  keysToClear.forEach((key) => {
+    localStorage.removeItem(key);
+  });
+
+  Object.entries(parsed.entries).forEach(([key, value]) => {
+    localStorage.setItem(key, value);
+  });
+
+  return Object.keys(parsed.entries).length;
 }
 
 /**

@@ -1,93 +1,65 @@
-import { ChordToken, PlaybackEvent } from "@/types/music";
+import { ChordToken, Hand } from "@/types/music";
 import { chordToMidiNotes } from "./music";
 
 /**
- * @brief 伴奏パターンの定義
+ * @brief 1拍あたりの内部tick数（4分音符=12tick）
+ */
+export const TICKS_PER_BEAT = 12;
+
+/**
+ * @brief パターンのデフォルトベロシティ
+ */
+const DEFAULT_VELOCITY = 0.7;
+
+/**
+ * @brief パターン内の音参照
+ */
+export interface ToneRef {
+  degreeIndex: number;
+  octaveShift: number;
+  semitoneShift?: number;
+}
+
+/**
+ * @brief パターン定義用ノートトークン
+ */
+export interface PatternNoteToken {
+  durationTick: number;
+  // nullの場合は休符として扱う
+  chordIndex: number | null;
+  // tonesが空配列の場合は休符として扱う
+  tones: ToneRef[];
+  velocity?: number;
+}
+
+/**
+ * @brief 小節パターン生成の入力
+ */
+export interface PatternBarInput {
+  chordsInBar: ChordToken[];
+  beatsPerBar: 3 | 4;
+  hand: Hand;
+}
+
+/**
+ * @brief 小節パターン生成の解決済みノート
+ */
+export interface ResolvedPatternNote {
+  startTick: number;
+  durationTick: number;
+  midiNotes: number[];
+  velocity: number;
+}
+
+/**
+ * @brief 演奏パターン定義
  */
 export interface PatternDef {
   id: string;
   name: string;
   nameJa: string;
-  /** 1小節分のイベントを生成する関数 */
-  generate: (chord: ChordToken, beatsPerBar: number, startBeat: number) => PlaybackEvent[];
-}
-
-/**
- * @brief 全音符パターン（コードを全音符で鳴らす）
- */
-const wholePattern: PatternDef = {
-  id: "whole",
-  name: "Whole Note",
-  nameJa: "全音符",
-  generate(chord, beatsPerBar, startBeat) {
-    if (chord.isRest) return [];
-    const notes = chordToMidiNotes(chord, 4);
-    return [{
-      atBeat: startBeat,
-      midiNotes: notes,
-      velocity: 0.7,
-      durationBeat: beatsPerBar,
-    }];
-  },
-};
-
-/**
- * @brief アルペジオパターン（コード構成音を1拍ずつ分散）
- */
-const arpeggioPattern: PatternDef = {
-  id: "arpeggio",
-  name: "Arpeggio",
-  nameJa: "アルペジオ",
-  generate(chord, beatsPerBar, startBeat) {
-    if (chord.isRest) return [];
-    const notes = chordToMidiNotes(chord, 4);
-    const events: PlaybackEvent[] = [];
-    for (let i = 0; i < beatsPerBar; i++) {
-      const noteIdx = i % notes.length;
-      events.push({
-        atBeat: startBeat + i,
-        midiNotes: [notes[noteIdx]],
-        velocity: 0.7,
-        durationBeat: 1,
-      });
-    }
-    return events;
-  },
-};
-
-/**
- * @brief ブロックコードパターン（毎拍でコードを弾く）
- */
-const blockPattern: PatternDef = {
-  id: "block",
-  name: "Block Chord",
-  nameJa: "ブロックコード",
-  generate(chord, beatsPerBar, startBeat) {
-    if (chord.isRest) return [];
-    const notes = chordToMidiNotes(chord, 4);
-    const events: PlaybackEvent[] = [];
-    for (let i = 0; i < beatsPerBar; i++) {
-      events.push({
-        atBeat: startBeat + i,
-        midiNotes: notes,
-        velocity: i === 0 ? 0.8 : 0.6,
-        durationBeat: 1,
-      });
-    }
-    return events;
-  },
-};
-
-/**
- * @brief 利用可能なパターン一覧
- */
-export const PATTERNS: PatternDef[] = [wholePattern, arpeggioPattern, blockPattern];
-
-/**
- * @brief パターンIDからパターン定義を取得する
- */
-export function getPattern(id: string): PatternDef {
-  return PATTERNS.find((p) => p.id === id) || wholePattern;
+  notesByHand: Record<Hand, PatternNoteToken[]>;
+  generateBar: (input: PatternBarInput) => ResolvedPatternNote[];
 }
 
 /**
@@ -96,4 +68,366 @@ export function getPattern(id: string): PatternDef {
  */
 export function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+/**
+ * @brief パターン定義ヘルパー（1音トークン）
+ */
+const N = (
+  durationTick: number,
+  chordIndex: number,
+  tones: ToneRef[],
+  velocity?: number
+): PatternNoteToken => ({ durationTick, chordIndex, tones, velocity });
+
+/**
+ * @brief パターン定義ヘルパー（休符トークン）
+ */
+const R = (durationTick: number): PatternNoteToken => ({ durationTick, chordIndex: null, tones: [] });
+
+/**
+ * @brief 音参照ヘルパー
+ */
+const T = (
+  degreeIndex: number,
+  octaveShift: number,
+  semitoneShift?: number
+): ToneRef => ({ degreeIndex, octaveShift, semitoneShift });
+
+/**
+ * @brief ToneRefからMIDIノートを解決する
+ */
+export function resolveToneRef(
+  chordsInBar: ChordToken[],
+  chordIndex: number,
+  tone: ToneRef
+): number | null {
+  const chord = chordsInBar[chordIndex];
+  if (!chord || chord.isRest) return null;
+
+  const notes = chordToMidiNotes(chord, 4);
+  if (notes.length === 0) return null;
+
+  const chordToneCount = notes.length;
+  const degreeOctaveShift = Math.floor(tone.degreeIndex / chordToneCount);
+  const normalizedDegreeIndex =
+    ((tone.degreeIndex % chordToneCount) + chordToneCount) % chordToneCount;
+  const totalOctaveShift = tone.octaveShift + degreeOctaveShift;
+  const baseMidi = notes[normalizedDegreeIndex];
+
+  return baseMidi + totalOctaveShift * 12 + (tone.semitoneShift ?? 0);
+}
+
+/**
+ * @brief パターントークン列（duration累積）を小節ノート列へ解決する
+ */
+export function resolveBarPattern(input: PatternBarInput, tokens: PatternNoteToken[]): ResolvedPatternNote[] {
+  const barTicks = input.beatsPerBar * TICKS_PER_BEAT;
+  let cursorTick = 0;
+
+  return tokens
+    .map((token) => {
+      const clampedStart = Math.max(0, Math.floor(cursorTick));
+      const tokenDurationTick = Math.max(0, Math.floor(token.durationTick));
+      const rawEnd = clampedStart + tokenDurationTick;
+      cursorTick += tokenDurationTick;
+      const clampedEnd = Math.min(barTicks, rawEnd);
+      const durationTick = clampedEnd - clampedStart;
+      if (durationTick <= 0 || clampedStart >= barTicks) return null;
+
+      const midiSet = new Set<number>();
+      if (token.chordIndex !== null) {
+        for (const tone of token.tones) {
+          const midi = resolveToneRef(input.chordsInBar, token.chordIndex, tone);
+          if (midi !== null) {
+            midiSet.add(midi);
+          }
+        }
+      }
+
+      return {
+        startTick: clampedStart,
+        durationTick,
+        midiNotes: Array.from(midiSet.values()).sort((a, b) => a - b),
+        velocity: token.velocity ?? DEFAULT_VELOCITY,
+      } as ResolvedPatternNote;
+    })
+    .filter((note): note is ResolvedPatternNote => note !== null)
+    .sort((a, b) => a.startTick - b.startTick || b.durationTick - a.durationTick);
+}
+
+/**
+ * @brief PatternDef生成ヘルパー
+ */
+function definePattern(
+  base: Omit<PatternDef, "generateBar">
+): PatternDef {
+  return {
+    ...base,
+    generateBar(input) {
+      const tokens = base.notesByHand[input.hand] || [];
+      return resolveBarPattern(input, tokens);
+    },
+  };
+}
+
+
+/**
+ * @brief 利用可能なパターン一覧
+ */
+export const PATTERNS: PatternDef[] = [
+  definePattern({
+    id: "manual.quarterPulse",
+    name: "Quarter Chords + Half Bass",
+    nameJa: "4分和音+2分ベース",
+    notesByHand: {
+      // *   *   *   *   
+      // *       *        
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(24, 0, [T(0, -1), T(0, -2)]),
+        N(24, 2, [T(0, -1), T(0, -2)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.eighthBassPulse",
+    name: "Quarter Chords + Eighth Bass",
+    nameJa: "4分和音+8分ベース",
+    notesByHand: {
+      // *   *   *   *   
+      // * * * * * * * *  
+      R: [
+        N(12, 0, [T(1, 0), T(2, 0), T(3, 0)]),
+        N(12, 1, [T(1, 0), T(2, 0), T(3, 0)]),
+        N(12, 2, [T(1, 0), T(2, 0), T(3, 0)]),
+        N(12, 3, [T(1, 0), T(2, 0), T(3, 0)]),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        N(6, 0, [T(0, -1)]),
+        N(6, 1, [T(0, -2)]),
+        N(6, 1, [T(0, -1)]),
+        N(6, 2, [T(0, -2)]),
+        N(6, 2, [T(0, -1)]),
+        N(6, 3, [T(0, -2)]),
+        N(6, 3, [T(0, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.halfChordRise",
+    name: "Half Chords + Rising Bass",
+    nameJa: "2分和音+上行ベース",
+    notesByHand: {
+      // *       *       
+      // * * * * * * * *  
+      R: [
+        N(24, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(24, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        N(6, 0, [T(1, -2)]),
+        N(6, 1, [T(2, -2)]),
+        N(6, 1, [T(3, -2)]),
+        N(6, 2, [T(0, -2)]),
+        N(6, 2, [T(1, -2)]),
+        N(6, 3, [T(2, -2)]),
+        N(6, 3, [T(3, -2)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.halfChordRiseDown",
+    name: "Half Chords + Rising & Falling Bass",
+    nameJa: "2分和音+上行&下行ベース",
+    notesByHand: {
+      // *       *       
+      // * * * * * * * *  
+      R: [
+        N(24, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(24, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        N(6, 0, [T(1, -2)]),
+        N(6, 1, [T(2, -2)]),
+        N(6, 1, [T(3, -2)]),
+        N(6, 2, [T(4, -2)]),
+        N(6, 2, [T(3, -2)]),
+        N(6, 3, [T(2, -2)]),
+        N(6, 3, [T(1, -2)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.restOffbeatComp",
+    name: "Offbeat Comp + Dotted Bass",
+    nameJa: "裏打ち+付点ベース",
+    notesByHand: {
+      // - * - * - * - *
+      // *   -   *   -
+      R: [
+        R(6),
+        N(6, 0, [T(1, 0), T(2, 0), T(3, 0)]),
+        R(6),
+        N(6, 1, [T(1, 0), T(2, 0), T(3, 0)]),
+        R(6),
+        N(6, 2, [T(1, 0), T(2, 0), T(3, 0)]),
+        R(6),
+        N(6, 3, [T(1, 0), T(2, 0), T(3, 0)]),
+      ],
+      L: [
+        N(18, 0, [T(0, -2), T(0, -1)]),
+        R(6),
+        N(18, 2, [T(0, -2), T(0, -1)]),
+        R(6),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.restCallResponse",
+    name: "Call & Response Stabs",
+    nameJa: "コール&レスポンス刻み",
+    notesByHand: {
+      // *   -   * - * -
+      // * - * - * - * -
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        R(12),
+        N(6, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        R(6),
+        N(6, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+        R(6),
+      ],
+      L: [
+        N(6, 0, [T(0, -2)]),
+        R(6),
+        N(6, 1, [T(0, -2)]),
+        R(6),
+        N(6, 2, [T(0, -2)]),
+        R(6),
+        N(6, 3, [T(0, -2)]),
+        R(6),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.imageChordDotsBass",
+    name: "Quarter Chords + Dotted Bass",
+    nameJa: "4分和音+付点8分ベース",
+    notesByHand: {
+      // *   *   *   *   
+      // *     * *     *  
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(18, 0, [T(0, -2),T(0, -1)]),
+        N(6, 1, [T(0, -2),T(0, -1)]),
+        N(18, 2, [T(0, -2),T(0, -1)]),
+        N(6, 3, [T(0, -2),T(0, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.imagePhraseAltBass",
+    name: "Eighth Phrase + Quarter Chords",
+    nameJa: "8分フレーズ+4分和音",
+    notesByHand: {
+      R: [
+        N(6, 0, [T(3, 0), T(2, 0)]),
+        N(6, 0, [T(1, 0)]),
+        N(6, 1, [T(2, 0)]),
+        N(6, 1, [T(3, 0), T(2, 0)]),
+        N(6, 2, [T(4, 0), T(3, 0)]),
+        N(6, 2, [T(2, 0)]),
+        N(6, 3, [T(3, 0)]),
+        N(6, 3, [T(4, 0), T(3, 0)]),
+      ],
+      L: [
+        N(12, 0, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 2, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.imageAccentSync",
+    name: "Sixteenth Accent Syncopation",
+    nameJa: "16分アクセント+シンコペ",
+    notesByHand: {
+      R: [
+        N(12, 0, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(9, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(3, 1, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(12, 2, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(9, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+        N(3, 3, [T(0, 0), T(1, 0), T(2, 0)]),
+      ],
+      L: [
+        N(18, 0, [T(0, -2),T(0, -1)]),
+        N(6, 1, [T(0, -2),T(0, -1)]),
+        N(6, 2, [T(0, -2),T(0, -1)]),
+        N(12, 2, [T(0, -2),T(0, -1)]),
+        N(6, 3, [T(0, -2),T(0, -1)]),
+      ],
+    },
+  }),
+  definePattern({
+    id: "manual.ragtime",
+    name: "Ragtime",
+    nameJa: "ラグタイム",
+    notesByHand: {
+      R: [
+        N(9, 0, [T(3, 0), T(2, 0)]),
+        N(3, 0, [T(1, 0)]),
+        N(9, 1, [T(2, 0)]),
+        N(3, 1, [T(3, 0), T(2, 0)]),
+        R(9),
+        N(3, 2, [T(2, 0)]),
+        N(9, 3, [T(3, 0), T(2, 0)]),
+        N(3, 3, [T(2, 0)]),
+      ],
+      L: [
+        N(12, 0, [T(0, -2)]),
+        N(12, 1, [T(0, -1), T(1, -1), T(2, -1)]),
+        N(12, 2, [T(0, -2)]),
+        N(12, 3, [T(0, -1), T(1, -1), T(2, -1)]),
+      ],
+    },
+  })
+];
+
+const DEFAULT_PATTERN = PATTERNS[0];
+
+/**
+ * @brief パターンIDからパターン定義を取得する
+ */
+export function getPattern(id: string): PatternDef {
+  return PATTERNS.find((p) => p.id === id) || DEFAULT_PATTERN;
+}
+
+/**
+ * @brief 既定パターンIDを取得する
+ */
+export function getDefaultPatternId(): string {
+  return DEFAULT_PATTERN.id;
+}
+
+/**
+ * @brief パターンIDの有効性を判定する
+ */
+export function isValidPatternId(id: string): boolean {
+  return PATTERNS.some((p) => p.id === id);
 }

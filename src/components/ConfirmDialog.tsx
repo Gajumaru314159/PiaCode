@@ -33,14 +33,13 @@ export function ConfirmDialog({ message, okLabel = "はい", cancelLabel, onOk, 
       onClick={(e) => { if (e.target === overlayRef.current) onCancel(); }}
     >
       <div
-        className="mx-6 p-6 border border-[var(--border-color)] shadow-lg max-w-sm w-full"
-        style={{ backgroundColor: "var(--bg-paper)" }}
+        className="mx-6 p-6 border border-[var(--border-color)] shadow-lg max-w-sm w-full paper-bg-scroll"
       >
         <p className="text-sm text-center mb-6 whitespace-pre-wrap">{message}</p>
         <div className="flex justify-center gap-4">
           <button
             onClick={onOk}
-            className="w-24 px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
+            className="w-24 py-2 box-frame text-sm font-bold"
             aria-label={okLabel}
           >
             {okLabel}
@@ -48,7 +47,7 @@ export function ConfirmDialog({ message, okLabel = "はい", cancelLabel, onOk, 
           {cancelLabel && (
             <button
               onClick={onCancel}
-              className="w-24 px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
+              className="w-24 py-2 box-frame text-sm font-bold"
               aria-label={cancelLabel}
             >
               {cancelLabel}

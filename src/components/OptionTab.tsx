@@ -4,7 +4,28 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
 import { PATTERNS, getPattern } from "@/lib/audio";
-import { createChordToken, midiToVexKey } from "@/lib/music";
+import { createChordToken } from "@/lib/music";
+import { SYSTEM_PRESETS } from "@/lib/presets";
+import {
+  buildBarNotationModel,
+  buildVexVoiceData,
+  generateResolvedBarNotesFromChords,
+} from "@/lib/patternRender";
+import {
+  exportStorageMigrationData,
+  importStorageMigrationData,
+  loadAutosave,
+  loadLastOpened,
+  loadOptions,
+  loadUserPresets,
+} from "@/lib/storage";
+
+function buildMigrationFilename(date: Date = new Date()): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `piascore-${year}-${month}-${day}.dat`;
+}
 
 /**
  * @brief Optionタブ - 各種設定画面
@@ -20,6 +41,12 @@ export function OptionTab() {
   // テンポ計測用
   const tapTimesRef = useRef<number[]>([]);
   const [tempoInput, setTempoInput] = useState(String(options.tempo));
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [migrationStatus, setMigrationStatus] = useState("");
+
+  useEffect(() => {
+    setTempoInput(String(options.tempo));
+  }, [options.tempo]);
 
   /**
    * @brief オプション値を更新する
@@ -86,10 +113,100 @@ export function OptionTab() {
     }
   }, [updateOption]);
 
+  /**
+   * @brief localStorageから状態を再同期する
+   */
+  const syncStateFromStorage = useCallback(() => {
+    const importedOptions = loadOptions();
+    const importedPresets = loadUserPresets();
+    const importedLastOpened = loadLastOpened();
+
+    dispatch({ type: "SET_OPTIONS", options: importedOptions });
+    dispatch({
+      type: "SET_PLAYBACK",
+      playback: {
+        tempo: importedOptions.tempo,
+        isPlaying: false,
+        currentBeat: 0,
+      },
+    });
+    dispatch({ type: "SET_USER_PRESETS", presets: importedPresets });
+    dispatch({ type: "SET_LAST_OPENED", info: importedLastOpened });
+
+    if (!importedLastOpened) return;
+
+    if (importedLastOpened.source === "autosave") {
+      const autosave = loadAutosave();
+      if (autosave) {
+        dispatch({ type: "SET_PROGRESSION", progression: autosave.progression });
+        dispatch({ type: "SET_KEY", key: autosave.matrixKey });
+      }
+      return;
+    }
+
+    const sourcePresets = importedLastOpened.source === "system" ? SYSTEM_PRESETS : importedPresets;
+    const matched = sourcePresets.find((preset) => preset.id === importedLastOpened.id);
+    if (!matched) return;
+
+    dispatch({ type: "SET_PROGRESSION", progression: { ...matched.progression, cursor: 0 } });
+    dispatch({ type: "SET_KEY", key: matched.matrixKey });
+  }, [dispatch]);
+
+  /**
+   * @brief 移行ファイルとして現在データを保存する
+   */
+  const handleExportMigration = useCallback(() => {
+    try {
+      const { text, count } = exportStorageMigrationData();
+      const blob = new Blob([text], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = buildMigrationFilename();
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      setMigrationStatus(t("option.migrationExported", lang, { count: String(count) }));
+    } catch {
+      setMigrationStatus(t("option.migrationFailed", lang));
+    }
+  }, [lang]);
+
+  /**
+   * @brief インポート用ファイル選択ダイアログを開く
+   */
+  const handleClickImport = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  /**
+   * @brief 移行ファイルを読み込み、データを復元する
+   */
+  const handleImportMigration = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const count = importStorageMigrationData(text);
+      syncStateFromStorage();
+      setMigrationStatus(t("option.migrationImported", lang, { count: String(count) }));
+    } catch (error) {
+      if (error instanceof Error && (error.message === "invalid-json" || error.message === "invalid-format")) {
+        setMigrationStatus(t("option.migrationInvalidFile", lang));
+      } else {
+        setMigrationStatus(t("option.migrationFailed", lang));
+      }
+    } finally {
+      input.value = "";
+    }
+  }, [lang, syncStateFromStorage]);
+
   if (showPatternPanel) {
     return (
       <PatternPanel
         hand={patternHand}
+        lang={lang}
         onClose={() => setShowPatternPanel(false)}
         currentPatternId={patternHand === "R" ? options.rightPatternId : options.leftPatternId}
         onSelect={(id) => {
@@ -101,7 +218,7 @@ export function OptionTab() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
+    <div className="h-full overflow-y-auto p-4 space-y-4 paper-bg-scroll">
       {/* 楽譜表示 */}
       <Section title={t("option.notation", lang)}>
         <div className="flex flex-wrap gap-4">
@@ -209,9 +326,12 @@ export function OptionTab() {
           <span className="text-xs">{t("option.rightHand", lang)}</span>
           <button
             onClick={() => { setPatternHand("R"); setShowPatternPanel(true); }}
-            className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
+            className="block w-full mt-1 p-1 box-frame"
             aria-label="右手パターン選択"
           >
+            <div className="px-1 text-left text-xs font-bold">
+              {lang === "ja" ? getPattern(options.rightPatternId).nameJa : getPattern(options.rightPatternId).name}
+            </div>
             <PatternPreview patternId={options.rightPatternId} hand="R" compact />
           </button>
         </div>
@@ -221,9 +341,12 @@ export function OptionTab() {
           <span className="text-xs">{t("option.leftHand", lang)}</span>
           <button
             onClick={() => { setPatternHand("L"); setShowPatternPanel(true); }}
-            className="block w-full mt-1 p-1 border border-[var(--border-color)] bg-white"
+            className="block w-full mt-1 p-1 box-frame"
             aria-label="左手パターン選択"
           >
+            <div className="px-1 text-left text-xs font-bold">
+              {lang === "ja" ? getPattern(options.leftPatternId).nameJa : getPattern(options.leftPatternId).name}
+            </div>
             <PatternPreview patternId={options.leftPatternId} hand="L" compact />
           </button>
         </div>
@@ -248,7 +371,7 @@ export function OptionTab() {
           />
           <button
             onClick={handleTapTempo}
-            className="px-4 py-1 border border-[var(--border-color)] bg-white text-sm font-bold"
+            className="px-4 py-1 box-frame text-sm font-bold"
             aria-label="テンポ計測"
           >
             {t("option.measure", lang)}
@@ -273,6 +396,38 @@ export function OptionTab() {
           ))}
         </div>
       </Section>
+
+      {/* データ移行 */}
+      <Section title={t("option.dataMigration", lang)}>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExportMigration}
+            className="px-4 py-2 box-frame text-sm font-bold"
+            aria-label={t("option.exportData", lang)}
+          >
+            {t("option.exportData", lang)}
+          </button>
+          <button
+            onClick={handleClickImport}
+            className="px-4 py-2 box-frame text-sm font-bold"
+            aria-label={t("option.importData", lang)}
+          >
+            {t("option.importData", lang)}
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".dat,application/json,text/plain"
+            className="hidden"
+            onChange={handleImportMigration}
+          />
+        </div>
+        {migrationStatus && (
+          <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
+            {migrationStatus}
+          </p>
+        )}
+      </Section>
     </div>
   );
 }
@@ -280,7 +435,7 @@ export function OptionTab() {
 /** セクションコンテナ */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="p-3 border border-[var(--border-color)]" style={{ backgroundColor: "var(--bg-card)" }}>
+    <div className="p-3 box-frame">
       <h3 className="text-sm font-bold mb-2">{title}</h3>
       {children}
     </div>
@@ -292,21 +447,12 @@ function ToggleButton({ active, onClick, label }: { active: boolean; onClick: ()
   return (
     <button
       onClick={onClick}
-      className="px-3 py-1 border text-sm font-bold transition-colors"
-      style={{
-        backgroundColor: active ? "#C0C0C0" : "white",
-        borderColor: "var(--border-color)",
-      }}
+      className={`px-3 py-1 text-sm font-bold transition-colors ${active ? "box-frame box-frame-fill" : "box-frame"}`}
       aria-pressed={active}
     >
       {label}
     </button>
   );
-}
-
-interface PreviewEvent {
-  atBeat: number;
-  midiNotes: number[];
 }
 
 /**
@@ -335,7 +481,17 @@ function PatternPreview({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const Vex: any = await import("vexflow");
         const VexModule = Vex.default || Vex;
-        const { Renderer, Stave, StaveNote, Voice, Formatter, StaveConnector } = VexModule.Flow || VexModule;
+        const {
+          Renderer,
+          Stave,
+          StaveNote,
+          Voice,
+          Formatter,
+          StaveConnector,
+          Beam,
+          Dot,
+          Tuplet,
+        } = VexModule.Flow || VexModule;
 
         if (disposed || !containerRef.current) return;
         container.innerHTML = "";
@@ -349,6 +505,7 @@ function PatternPreview({
         const bars = 2;
         const horizontalPadding = 14;
         const barWidth = Math.floor((logicalWidth - horizontalPadding * 2) / bars);
+        const pattern = getPattern(patternId);
         const previewChord = createChordToken("C", "M");
 
         const renderer = new Renderer(container, Renderer.Backends.SVG);
@@ -356,13 +513,28 @@ function PatternPreview({
         const context = renderer.getContext();
         context.setFont("Arial", 10);
 
-        const activeEvents = buildPreviewEvents(patternId, previewChord, beatsPerBar, bars);
         for (let bar = 0; bar < bars; bar++) {
           const x = horizontalPadding + bar * barWidth;
           const y = rowTop;
-          const barStartBeat = bar * beatsPerBar;
+          const isLastBar = bar === bars - 1;
+          const chordsInBar = Array.from({ length: beatsPerBar }, () => ({ ...previewChord }));
 
           if (showBothClefs) {
+            const rightResolved = generateResolvedBarNotesFromChords(
+              pattern,
+              chordsInBar,
+              beatsPerBar,
+              "R"
+            );
+            const leftResolved = generateResolvedBarNotesFromChords(
+              pattern,
+              chordsInBar,
+              beatsPerBar,
+              "L"
+            );
+            const rightModel = buildBarNotationModel(rightResolved, beatsPerBar);
+            const leftModel = buildBarNotationModel(leftResolved, beatsPerBar);
+
             const trebleStave = new Stave(x, y, barWidth);
             if (bar === 0) {
               trebleStave.addClef("treble");
@@ -383,36 +555,89 @@ function PatternPreview({
               connector.setContext(context).draw();
             }
 
-            const trebleNotes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, "treble", 0);
-            const bassNotes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, "bass", -12);
+            // 小節線を上下譜表で接続
+            const connectorTypes = StaveConnector.type as Record<string, number | undefined>;
+            const singleLeft = connectorTypes.SINGLE_LEFT;
+            if (singleLeft !== undefined) {
+              const leftConnector = new StaveConnector(trebleStave, bassStave);
+              leftConnector.setType(singleLeft);
+              leftConnector.setContext(context).draw();
+            }
+            if (isLastBar) {
+              const singleRight = connectorTypes.SINGLE_RIGHT;
+              if (singleRight !== undefined) {
+                const rightConnector = new StaveConnector(trebleStave, bassStave);
+                rightConnector.setType(singleRight);
+                rightConnector.setContext(context).draw();
+              }
+            }
 
-            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            trebleVoice.addTickables(trebleNotes);
+            const trebleData = buildVexVoiceData({
+              StaveNoteClass: StaveNote,
+              BeamClass: Beam,
+              DotClass: Dot,
+              TupletClass: Tuplet,
+              model: rightModel,
+              clef: "treble",
+              midiShift: 0,
+            });
+            const bassData = buildVexVoiceData({
+              StaveNoteClass: StaveNote,
+              BeamClass: Beam,
+              DotClass: Dot,
+              TupletClass: Tuplet,
+              model: leftModel,
+              clef: "bass",
+              midiShift: 0,
+            });
+
+            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            trebleVoice.addTickables(trebleData.notes);
             const trebleWidth = Math.max(40, trebleStave.getNoteEndX() - trebleStave.getNoteStartX() - 4);
             new Formatter().joinVoices([trebleVoice]).format([trebleVoice], trebleWidth);
             trebleVoice.draw(context, trebleStave);
+            trebleData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            trebleData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
 
-            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            bassVoice.addTickables(bassNotes);
+            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            bassVoice.addTickables(bassData.notes);
             const bassWidth = Math.max(40, bassStave.getNoteEndX() - bassStave.getNoteStartX() - 4);
             new Formatter().joinVoices([bassVoice]).format([bassVoice], bassWidth);
             bassVoice.draw(context, bassStave);
+            bassData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            bassData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
           } else {
             const clef: "treble" | "bass" = hand === "R" ? "treble" : "bass";
-            const midiShift = hand === "R" ? 0 : -12;
             const stave = new Stave(x, y, barWidth);
             if (bar === 0) {
               stave.addClef(clef);
               stave.addTimeSignature("4/4");
             }
             stave.setContext(context).draw();
+            const resolvedNotes = generateResolvedBarNotesFromChords(
+              pattern,
+              chordsInBar,
+              beatsPerBar,
+              hand
+            );
+            const barModel = buildBarNotationModel(resolvedNotes, beatsPerBar);
 
-            const notes = buildPreviewNotes(StaveNote, activeEvents, barStartBeat, beatsPerBar, clef, midiShift);
-            const voice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            voice.addTickables(notes);
+            const voiceData = buildVexVoiceData({
+              StaveNoteClass: StaveNote,
+              BeamClass: Beam,
+              DotClass: Dot,
+              TupletClass: Tuplet,
+              model: barModel,
+              clef,
+              midiShift: 0,
+            });
+            const voice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            voice.addTickables(voiceData.notes);
             const noteWidth = Math.max(40, stave.getNoteEndX() - stave.getNoteStartX() - 4);
             new Formatter().joinVoices([voice]).format([voice], noteWidth);
             voice.draw(context, stave);
+            voiceData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            voiceData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
           }
         }
 
@@ -453,88 +678,44 @@ function PatternPreview({
   );
 }
 
-/**
- * @brief プレビュー用にパターンイベントを作成する
- */
-function buildPreviewEvents(patternId: string, chord: ReturnType<typeof createChordToken>, beatsPerBar: number, bars: number): PreviewEvent[] {
-  const pattern = getPattern(patternId);
-  const events: PreviewEvent[] = [];
-  for (let bar = 0; bar < bars; bar++) {
-    const barEvents = pattern.generate(chord, beatsPerBar, bar * beatsPerBar);
-    for (const event of barEvents) {
-      events.push({ atBeat: event.atBeat, midiNotes: event.midiNotes });
-    }
-  }
-  return events;
-}
-
-/**
- * @brief プレビュー用に1小節分の音符を作成する
- */
-function buildPreviewNotes(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  StaveNoteClass: any,
-  events: PreviewEvent[],
-  barStartBeat: number,
-  beatsPerBar: number,
-  clef: "treble" | "bass",
-  midiShift: number
-) {
-  const restKey = clef === "bass" ? "d/3" : "b/4";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const notes: any[] = [];
-  const eventMap = new Map<number, number[]>();
-  for (const event of events) {
-    eventMap.set(event.atBeat, event.midiNotes);
-  }
-
-  for (let beat = 0; beat < beatsPerBar; beat++) {
-    const midiNotes = eventMap.get(barStartBeat + beat);
-    if (!midiNotes || midiNotes.length === 0) {
-      notes.push(new StaveNoteClass({ keys: [restKey], duration: "4r", clef }));
-      continue;
-    }
-    const keys = midiNotes.map((midi) => midiToVexKey(midi + midiShift));
-    notes.push(new StaveNoteClass({ keys, duration: "4", clef }));
-  }
-
-  return notes;
-}
-
 /** パターン選択パネル（全画面表示） */
 function PatternPanel({
   hand,
+  lang,
   onClose,
   currentPatternId,
   onSelect,
 }: {
   hand: "L" | "R";
+  lang: "ja" | "en" | "zh";
   onClose: () => void;
   currentPatternId: string;
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: "var(--bg-paper)" }}>
+    <div className="h-full flex flex-col paper-bg-scroll">
       <div className="flex justify-end p-4">
         <button
           onClick={onClose}
-          className="px-6 py-2 border border-[var(--border-color)] bg-white text-sm font-bold"
+          className="px-6 py-2 box-frame text-sm font-bold"
           aria-label="閉じる"
         >
           Back
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4 paper-bg-scroll">
         {PATTERNS.map((pattern) => (
           <button
             key={pattern.id}
             onClick={() => onSelect(pattern.id)}
-            className="block w-full p-1 border border-[var(--border-color)] transition-colors"
-            style={{
-              backgroundColor: currentPatternId === pattern.id ? "#C0C0C0" : "white",
-            }}
+            className={`block w-full p-1 transition-colors ${
+              currentPatternId === pattern.id ? "box-frame box-frame-fill" : "box-frame"
+            }`}
             aria-label={`${pattern.nameJa}を選択`}
           >
+            <div className="px-1 text-left text-xs font-bold">
+              {lang === "ja" ? pattern.nameJa : pattern.name}
+            </div>
             <PatternPreview patternId={pattern.id} hand={hand} compact showBothClefs />
           </button>
         ))}

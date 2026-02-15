@@ -40,7 +40,7 @@ export function SavePanel() {
   };
 
   return (
-    <div className="flex flex-col h-full p-4" style={{ backgroundColor: "var(--bg-paper)" }}>
+    <div className="flex flex-col h-full p-4 paper-bg-scroll">
       {/* ヘッダー */}
       <div className="flex justify-end mb-4">
         <button
@@ -69,7 +69,7 @@ export function SavePanel() {
       </div>
 
       {/* 候補リスト */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto paper-bg-scroll">
         {/* 入力した名前自体を候補として表示（完全一致する既存名がない場合） */}
         {name.trim() && !suggestions.includes(name.trim()) && (
           <button

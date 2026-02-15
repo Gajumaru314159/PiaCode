@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
-import { SYSTEM_PRESETS } from "@/lib/presets";
+import { SYSTEM_PRESETS, getPresetDisplayName } from "@/lib/presets";
 import { chordDisplayName } from "@/lib/music";
 import { t } from "@/lib/i18n";
 import { SavedProgression } from "@/types/music";
@@ -22,12 +22,12 @@ export function LoadTab() {
    * @brief 進行を簡潔に表示する（コード名をハイフン区切りで）
    */
   const progressionSummary = (preset: SavedProgression): string => {
-    const { cells, beatsPerBar } = preset.progression;
+    const { cells } = preset.progression;
     const maxDisplayChords = 8;
     const chords: string[] = [];
     let hasMore = false;
 
-    for (let i = 0; i < cells.length; i += beatsPerBar) {
+    for (let i = 0; i < cells.length; i++) {
       const cell = cells[i];
       if (cell.isRest) continue;
       const name = chordDisplayName(cell);
@@ -74,40 +74,40 @@ export function LoadTab() {
   return (
     <>
       <div className="h-full overflow-y-auto py-4">
-        {allPresets.map((preset) => (
-          <div
-            key={preset.id}
-            className="relative"
-          >
-            <button
-              onClick={() => loadPreset(preset)}
-              className="w-full py-5 text-center hover:bg-gray-100 active:bg-gray-200 transition-colors"
-              aria-label={`${preset.name}をロード`}
-            >
-              <div className="text-lg font-bold">{preset.name}</div>
-              <div className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-                {progressionSummary(preset)}
-              </div>
-            </button>
-            {/* ユーザープリセットのみ削除ボタン */}
-            {!preset.isSystem && (
+        {allPresets.map((preset) => {
+          const displayName = getPresetDisplayName(preset, lang);
+          return (
+            <div key={preset.id} className="relative">
               <button
-                onClick={(e) => handleDeleteClick(e, preset)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-bold"
-                style={{ color: "var(--text-secondary)" }}
-                aria-label={`${preset.name}を削除`}
+                onClick={() => loadPreset(preset)}
+                className="w-full py-5 text-center hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                aria-label={`${displayName}をロード`}
               >
-                ×
+                <div className="text-lg font-bold">{displayName}</div>
+                <div className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+                  {progressionSummary(preset)}
+                </div>
               </button>
-            )}
-          </div>
-        ))}
+              {/* ユーザープリセットのみ削除ボタン */}
+              {!preset.isSystem && (
+                <button
+                  onClick={(e) => handleDeleteClick(e, preset)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-bold"
+                  style={{ color: "var(--text-secondary)" }}
+                  aria-label={`${displayName}を削除`}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* 削除確認ダイアログ */}
       {deleteTarget && (
         <ConfirmDialog
-          message={t("load.deleteConfirm", lang, { name: deleteTarget.name })}
+          message={t("load.deleteConfirm", lang, { name: getPresetDisplayName(deleteTarget, lang) })}
           okLabel={t("common.yes", lang)}
           cancelLabel={t("common.no", lang)}
           onOk={confirmDelete}

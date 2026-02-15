@@ -8,8 +8,8 @@ import React from "react";
 export function Splash() {
   return (
     <div
-      className="flex flex-col items-center justify-center h-full"
-      style={{ backgroundColor: "var(--bg-paper)", zIndex: 10 }}
+      className="flex flex-col items-center justify-center h-full paper-bg-scroll"
+      style={{ zIndex: 10 }}
     >
       <h1
         className="text-5xl font-bold tracking-wide"

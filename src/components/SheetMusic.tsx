@@ -2,8 +2,13 @@
 
 import React, { useEffect, useRef } from "react";
 import { Progression } from "@/types/music";
-import { chordDisplayName, midiToVexKey } from "@/lib/music";
-import { getPattern, PatternDef } from "@/lib/audio";
+import { chordDisplayName } from "@/lib/music";
+import { getPattern } from "@/lib/audio";
+import {
+  buildBarNotationModel,
+  buildVexVoiceData,
+  generateResolvedBarNotes,
+} from "@/lib/patternRender";
 
 interface SheetMusicProps {
   progression: Progression;
@@ -15,6 +20,32 @@ interface SheetMusicProps {
   leftPatternId: string;
   rightPatternId: string;
   maxBeats: number;
+}
+
+/**
+ * @brief 小節内のコード表示イベント（表示拍とラベル）を抽出する
+ * @param cells 全コードセル
+ * @param firstBeatIdx 対象小節の先頭拍インデックス
+ * @param beatsPerBar 拍子
+ */
+function collectBarChordLabels(
+  cells: Progression["cells"],
+  firstBeatIdx: number,
+  beatsPerBar: number
+): Array<{ beatOffset: number; label: string }> {
+  const labels: Array<{ beatOffset: number; label: string }> = [];
+  let prevLabel = "";
+
+  for (let beatOffset = 0; beatOffset < beatsPerBar; beatOffset++) {
+    const cell = cells[firstBeatIdx + beatOffset];
+    const label = cell && !cell.isRest ? chordDisplayName(cell) : "";
+    if (label && label !== prevLabel) {
+      labels.push({ beatOffset, label });
+    }
+    prevLabel = label;
+  }
+
+  return labels;
 }
 
 /**
@@ -45,7 +76,17 @@ export function SheetMusic({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const Vex: any = await import("vexflow");
         const VexModule = Vex.default || Vex;
-        const { Renderer, Stave, StaveNote, Voice, Formatter, StaveConnector } = VexModule.Flow || VexModule;
+        const {
+          Renderer,
+          Stave,
+          StaveNote,
+          Voice,
+          Formatter,
+          StaveConnector,
+          Beam,
+          Dot,
+          Tuplet,
+        } = VexModule.Flow || VexModule;
 
         const container = containerRef.current;
         if (disposed || !container) return;
@@ -62,9 +103,14 @@ export function SheetMusic({
         const containerWidth = container.clientWidth;
         if (containerWidth <= 0 || displayBars <= 0) return;
 
+        const leftPattern = getPattern(leftPatternId);
+        const rightPattern = getPattern(rightPatternId);
+
         const sidePadding = 20;
         const topPadding = 26;
-        const rowHeight = 210;
+        const rowHeight = 240;
+        const grandStaffOffsetY = 100;
+        const activeBarHighlightHeight = 210;
         const widthScale = barsPerRow === 4 ? 2.3 : 1.4;
         const logicalWidth = Math.max(containerWidth * widthScale, sidePadding * 2 + barsPerRow * 140);
         const barWidth = Math.floor((logicalWidth - sidePadding * 2) / barsPerRow);
@@ -80,6 +126,8 @@ export function SheetMusic({
           const absoluteBarIdx = normalizedStartBar + localBarIdx;
           const row = Math.floor(localBarIdx / barsPerRow);
           const col = localBarIdx % barsPerRow;
+          const rowStartIdx = row * barsPerRow;
+          const barsInRow = Math.min(barsPerRow, displayBars - rowStartIdx);
           const x = sidePadding + col * barWidth;
           const y = topPadding + row * rowHeight;
           const isCurrentBar = absoluteBarIdx === currentBar;
@@ -93,7 +141,7 @@ export function SheetMusic({
           trebleStave.setContext(context).draw();
 
           // ヘ音記号の五線
-          const bassStave = new Stave(x, y + 70, barWidth);
+          const bassStave = new Stave(x, y + grandStaffOffsetY, barWidth);
           if (col === 0) {
             bassStave.addClef("bass");
             bassStave.addTimeSignature(`${beatsPerBar}/4`);
@@ -107,49 +155,114 @@ export function SheetMusic({
             connector.setContext(context).draw();
           }
 
+          // 小節線を上下譜表で接続
+          const connectorTypes = StaveConnector.type as Record<string, number | undefined>;
+          const singleLeft = connectorTypes.SINGLE_LEFT;
+          if (singleLeft !== undefined) {
+            const leftConnector = new StaveConnector(trebleStave, bassStave);
+            leftConnector.setType(singleLeft);
+            leftConnector.setContext(context).draw();
+          }
+          if (col === barsInRow - 1) {
+            const singleRight = connectorTypes.SINGLE_RIGHT;
+            if (singleRight !== undefined) {
+              const rightConnector = new StaveConnector(trebleStave, bassStave);
+              rightConnector.setType(singleRight);
+              rightConnector.setContext(context).draw();
+            }
+          }
+
           // 現在再生中の小節をハイライト
           if (isCurrentBar) {
             context.save();
             context.setFillStyle("rgba(120, 120, 120, 0.5)");
-            context.fillRect(x, y, barWidth, 180);
+            context.fillRect(x, y, barWidth, activeBarHighlightHeight);
             context.restore();
           }
 
-          // コード名とテンポを上部に表示
+          // コード名を上部に表示（小節内のコード変化に対応）
           const firstBeatIdx = absoluteBarIdx * beatsPerBar;
-          const firstCell = cells[firstBeatIdx];
-          if (firstCell && !firstCell.isRest) {
+          const chordLabels = collectBarChordLabels(cells, firstBeatIdx, beatsPerBar);
+          if (chordLabels.length > 0) {
             context.save();
             context.setFont("Arial", 11, "bold");
             context.setFillStyle("#000");
-            const chordName = chordDisplayName(firstCell);
-            if (chordName) {
-              context.fillText(chordName, x + 30, y - 8);
-            }
+            const labelStartX = x + 30;
+            const labelEndX = x + Math.max(barWidth - 20, 31);
+            const labelWidth = labelEndX - labelStartX;
+
+            chordLabels.forEach(({ beatOffset, label }) => {
+              const ratio = beatsPerBar > 0 ? beatOffset / beatsPerBar : 0;
+              const labelX = labelStartX + labelWidth * ratio;
+              context.fillText(label, labelX, y - 8);
+            });
             context.restore();
           }
 
-          // 音符を描画（オプションの左右パターンに追従）
-          const leftPattern = getPattern(leftPatternId);
-          const rightPattern = getPattern(rightPatternId);
-          const leftEvents = collectBeatwisePatternEvents(cells, firstBeatIdx, beatsPerBar, leftPattern);
-          const rightEvents = collectBeatwisePatternEvents(cells, firstBeatIdx, beatsPerBar, rightPattern);
+          const rightResolved = generateResolvedBarNotes(
+            rightPattern,
+            cells,
+            firstBeatIdx,
+            beatsPerBar,
+            "R"
+          );
+          const leftResolved = generateResolvedBarNotes(
+            leftPattern,
+            cells,
+            firstBeatIdx,
+            beatsPerBar,
+            "L"
+          );
 
-          const trebleNotes = buildPatternNotes(StaveNote, rightEvents, firstBeatIdx, beatsPerBar, "treble", 0);
-          const bassNotes = buildPatternNotes(StaveNote, leftEvents, firstBeatIdx, beatsPerBar, "bass", -12);
+          const rightModel = buildBarNotationModel(rightResolved, beatsPerBar);
+          const leftModel = buildBarNotationModel(leftResolved, beatsPerBar);
+
+          const rightVoiceData = buildVexVoiceData({
+            StaveNoteClass: StaveNote,
+            BeamClass: Beam,
+            DotClass: Dot,
+            TupletClass: Tuplet,
+            model: rightModel,
+            clef: "treble",
+            midiShift: 0,
+          });
+
+          const leftVoiceData = buildVexVoiceData({
+            StaveNoteClass: StaveNote,
+            BeamClass: Beam,
+            DotClass: Dot,
+            TupletClass: Tuplet,
+            model: leftModel,
+            clef: "bass",
+            midiShift: 0,
+          });
 
           try {
-            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            trebleVoice.addTickables(trebleNotes);
-            const trebleWidth = Math.max(40, trebleStave.getNoteEndX() - trebleStave.getNoteStartX() - 6);
-            new Formatter().joinVoices([trebleVoice]).format([trebleVoice], trebleWidth);
-            trebleVoice.draw(context, trebleStave);
+            const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            trebleVoice.addTickables(rightVoiceData.notes);
+            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
+            bassVoice.addTickables(leftVoiceData.notes);
 
-            const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
-            bassVoice.addTickables(bassNotes);
-            const bassWidth = Math.max(40, bassStave.getNoteEndX() - bassStave.getNoteStartX() - 6);
-            new Formatter().joinVoices([bassVoice]).format([bassVoice], bassWidth);
+            const sharedNoteStartX = Math.max(trebleStave.getNoteStartX(), bassStave.getNoteStartX());
+            trebleStave.setNoteStartX(sharedNoteStartX);
+            bassStave.setNoteStartX(sharedNoteStartX);
+            const sharedWidth = Math.max(
+              40,
+              Math.min(trebleStave.getNoteEndX(), bassStave.getNoteEndX()) - sharedNoteStartX - 6
+            );
+
+            new Formatter()
+              .joinVoices([trebleVoice])
+              .joinVoices([bassVoice])
+              .format([trebleVoice, bassVoice], sharedWidth);
+
+            trebleVoice.draw(context, trebleStave);
             bassVoice.draw(context, bassStave);
+
+            rightVoiceData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            rightVoiceData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
+            leftVoiceData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            leftVoiceData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
           } catch (e) {
             console.warn("楽譜描画エラー:", e);
           }
@@ -199,60 +312,4 @@ export function SheetMusic({
   }, [progression, currentBar, startBar, barsPerRow, rowCount, tempo, leftPatternId, rightPatternId, maxBeats]);
 
   return <div ref={containerRef} className="w-full overflow-hidden" />;
-}
-
-/**
- * @brief パターンイベントを楽譜用の拍単位ノートへ変換する
- */
-function buildPatternNotes(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  StaveNoteClass: any,
-  events: Array<{ atBeat: number; midiNotes: number[] }>,
-  barStartBeat: number,
-  beatsPerBar: number,
-  clef: "treble" | "bass",
-  midiShift: number
-) {
-  const restKey = clef === "bass" ? "d/3" : "b/4";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const notes: any[] = [];
-  const eventMap = new Map<number, number[]>();
-  for (const event of events) {
-    eventMap.set(event.atBeat, event.midiNotes);
-  }
-
-  for (let beat = 0; beat < beatsPerBar; beat++) {
-    const beatEvents = eventMap.get(barStartBeat + beat);
-    if (!beatEvents || beatEvents.length === 0) {
-      notes.push(new StaveNoteClass({ keys: [restKey], duration: "4r", clef }));
-      continue;
-    }
-    const keys = beatEvents.map((midi) => midiToVexKey(midi + midiShift));
-    notes.push(new StaveNoteClass({ keys, duration: "4", clef }));
-  }
-
-  return notes;
-}
-
-/**
- * @brief 小節内の各拍セルに対してパターンイベントを生成する
- */
-function collectBeatwisePatternEvents(
-  cells: Progression["cells"],
-  barStartBeat: number,
-  beatsPerBar: number,
-  pattern: PatternDef
-) {
-  const events: Array<{ atBeat: number; midiNotes: number[] }> = [];
-  for (let beat = 0; beat < beatsPerBar; beat++) {
-    const absoluteBeat = barStartBeat + beat;
-    const cell = cells[absoluteBeat];
-    if (!cell || cell.isRest || !cell.root) continue;
-    // 1拍単位で生成して、小節内コード変更をそのまま反映する
-    const beatEvents = pattern.generate(cell, 1, absoluteBeat);
-    for (const event of beatEvents) {
-      events.push({ atBeat: event.atBeat, midiNotes: event.midiNotes });
-    }
-  }
-  return events;
 }

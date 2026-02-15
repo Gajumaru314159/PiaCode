@@ -2,9 +2,14 @@
 
 import React, { useCallback, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { resolveLoopLengthFromCells, createRestToken } from "@/lib/music";
+import { resolveLoopLengthFromCells } from "@/lib/music";
 import { t } from "@/lib/i18n";
 import { getPattern, midiToFreq } from "@/lib/audio";
+import {
+  generateResolvedBarNotes,
+  getBarStartBeat,
+  resolvedNotesToPlaybackEvents,
+} from "@/lib/patternRender";
 import { SheetMusic } from "./SheetMusic";
 
 /**
@@ -14,6 +19,12 @@ export function PlayTab() {
   const { state, dispatch } = useApp();
   const { progression, playback, options } = state;
   const lang = options.language;
+  const circleButtonStyle: React.CSSProperties = {
+    backgroundImage: "url('/images/backgrounds/circle.webp')",
+    backgroundSize: "contain",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+  };
 
   const loopLength = resolveLoopLengthFromCells(progression.cells, progression.beatsPerBar);
 
@@ -101,20 +112,25 @@ export function PlayTab() {
     hand: "L" | "R",
     patternId: string
   ) => {
-    const beatCell = progression.cells[beat] ?? createRestToken();
-    if (beatCell.isRest || !beatCell.root) return;
     const pattern = getPattern(patternId);
-    // 1拍=1コードセルとしてイベント生成することで、小節内コード変更に追従する
-    const events = pattern.generate(beatCell, 1, beat);
-    const octaveShift = hand === "L" ? -12 : 0;
+    const barStartBeat = getBarStartBeat(beat, progression.beatsPerBar);
+    const resolvedNotes = generateResolvedBarNotes(
+      pattern,
+      progression.cells,
+      barStartBeat,
+      progression.beatsPerBar,
+      hand
+    );
+    const events = resolvedNotesToPlaybackEvents(resolvedNotes, barStartBeat);
 
     for (const event of events) {
-      if (event.atBeat !== beat) continue;
+      const beatOffset = event.atBeat - beat;
+      if (beatOffset < 0 || beatOffset >= 1) continue;
       for (const midi of event.midiNotes) {
         playNote(
           ctx,
-          midiToFreq(midi + octaveShift),
-          time,
+          midiToFreq(midi),
+          time + beatOffset * beatDuration,
           Math.max(0.08, event.durationBeat * beatDuration),
           event.velocity
         );
@@ -299,7 +315,8 @@ export function PlayTab() {
         <button
           aria-label={playback.isPlaying ? "停止" : "再生"}
           onClick={togglePlay}
-          className="w-14 h-14 rounded-full border-2 border-[var(--border-color)] bg-white flex items-center justify-center"
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={circleButtonStyle}
         >
           <PlayIcon isPlaying={playback.isPlaying} />
         </button>
@@ -308,8 +325,8 @@ export function PlayTab() {
         <button
           aria-label={playback.isLoop ? "ループOFF" : "ループON"}
           onClick={() => dispatch({ type: "SET_PLAYBACK", playback: { isLoop: !playback.isLoop } })}
-          className="w-14 h-14 rounded-full border-2 border-[var(--border-color)] bg-white flex items-center justify-center"
-          style={{ opacity: playback.isLoop ? 1 : 0.4 }}
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ ...circleButtonStyle, opacity: playback.isLoop ? 1 : 0.4 }}
         >
           <LoopIcon />
         </button>
@@ -318,8 +335,8 @@ export function PlayTab() {
         <button
           aria-label={playback.isMetronomeOn ? "メトロノームOFF" : "メトロノームON"}
           onClick={() => dispatch({ type: "SET_PLAYBACK", playback: { isMetronomeOn: !playback.isMetronomeOn } })}
-          className="w-14 h-14 rounded-full border-2 border-[var(--border-color)] bg-white flex items-center justify-center"
-          style={{ opacity: playback.isMetronomeOn ? 1 : 0.4 }}
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ ...circleButtonStyle, opacity: playback.isMetronomeOn ? 1 : 0.4 }}
         >
           <MetronomeIcon />
         </button>
