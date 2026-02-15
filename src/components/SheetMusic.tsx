@@ -204,17 +204,27 @@ export function SheetMusic({
           try {
             const trebleVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
             trebleVoice.addTickables(rightVoiceData.notes);
-            const trebleWidth = Math.max(40, trebleStave.getNoteEndX() - trebleStave.getNoteStartX() - 6);
-            new Formatter().joinVoices([trebleVoice]).format([trebleVoice], trebleWidth);
-            trebleVoice.draw(context, trebleStave);
-            rightVoiceData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
-            rightVoiceData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
-
             const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(true);
             bassVoice.addTickables(leftVoiceData.notes);
-            const bassWidth = Math.max(40, bassStave.getNoteEndX() - bassStave.getNoteStartX() - 6);
-            new Formatter().joinVoices([bassVoice]).format([bassVoice], bassWidth);
+
+            const sharedNoteStartX = Math.max(trebleStave.getNoteStartX(), bassStave.getNoteStartX());
+            trebleStave.setNoteStartX(sharedNoteStartX);
+            bassStave.setNoteStartX(sharedNoteStartX);
+            const sharedWidth = Math.max(
+              40,
+              Math.min(trebleStave.getNoteEndX(), bassStave.getNoteEndX()) - sharedNoteStartX - 6
+            );
+
+            new Formatter()
+              .joinVoices([trebleVoice])
+              .joinVoices([bassVoice])
+              .format([trebleVoice, bassVoice], sharedWidth);
+
+            trebleVoice.draw(context, trebleStave);
             bassVoice.draw(context, bassStave);
+
+            rightVoiceData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
+            rightVoiceData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
             leftVoiceData.beams.forEach((beam: { setContext: (ctx: unknown) => { draw: () => void } }) => beam.setContext(context).draw());
             leftVoiceData.tuplets.forEach((tuplet: { setContext: (ctx: unknown) => { draw: () => void } }) => tuplet.setContext(context).draw());
           } catch (e) {
