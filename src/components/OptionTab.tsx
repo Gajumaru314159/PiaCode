@@ -292,7 +292,7 @@ export function OptionTab() {
 /** セクションコンテナ */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="p-3 border border-[var(--border-color)]" style={{ backgroundColor: "var(--bg-card)" }}>
+    <div className="p-3 box-frame">
       <h3 className="text-sm font-bold mb-2">{title}</h3>
       {children}
     </div>

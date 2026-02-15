@@ -36,6 +36,14 @@ button, [role="button"] {
   min-height: 44px;
 }
 
+/* box.webpを使った共通フレーム */
+.box-frame {
+  border: 4px solid transparent;
+  border-image-source: url("/images/backgrounds/box.webp");
+  border-image-slice: 4;
+  border-image-repeat: repeat;
+}
+
 /* スクロールバーのスタイル */
 ::-webkit-scrollbar {
   width: 6px;
