@@ -50,9 +50,9 @@ type GridOverlay = {
 /**
  * @brief 12セルを明示生成して、その上に要素を重ねる行コンポーネント
  */
-function GridRow({ overlays = [] }: { overlays?: GridOverlay[] }) {
+function GridRow({ overlays = [], dataAnchor }: { overlays?: GridOverlay[]; dataAnchor?: string }) {
   return (
-    <div style={GRID_ROW_STYLE}>
+    <div style={GRID_ROW_STYLE} data-grid-anchor={dataAnchor}>
       {Array.from({ length: GRID_COLS }, (_, idx) => (
         <div
           key={`cell-${idx}`}
@@ -298,6 +298,7 @@ export function EditTab() {
       <div className="shrink-0 mt-2 overflow-x-hidden overflow-y-hidden" style={{ paddingBottom: "1px" }}>
         {/* 上段ルート行（◀ + 7ルート + ▶） */}
         <GridRow
+          dataAnchor="matrix"
           overlays={[
             {
               key: "prev-key",
@@ -539,9 +540,11 @@ function ChordGrid() {
   const { state, dispatch } = useApp();
   const { progression, currentKey } = state;
   const { cells, cursor, beatsPerBar } = progression;
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const playingRowRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const playTimerRef = useRef<number | null>(null);
+  const [alignmentOffset, setAlignmentOffset] = useState(0);
 
   // コンポーネントアンマウント時にクリーンアップ
   useEffect(() => {
@@ -549,6 +552,41 @@ function ChordGrid() {
       if (playTimerRef.current) clearInterval(playTimerRef.current);
     };
   }, []);
+
+  // マトリクス行とコード進行行の左端差分を測って補正する
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const updateOffset = () => {
+      const matrixAnchor = document.querySelector<HTMLElement>('[data-grid-anchor="matrix"]');
+      const chordAnchor = container.querySelector<HTMLElement>('[data-grid-anchor="chord"]');
+      if (!matrixAnchor || !chordAnchor) {
+        setAlignmentOffset(0);
+        return;
+      }
+      const delta = chordAnchor.getBoundingClientRect().left - matrixAnchor.getBoundingClientRect().left;
+      const nextOffset = Math.abs(delta) < 0.5 ? 0 : -delta;
+      setAlignmentOffset((prev) => (Math.abs(prev - nextOffset) < 0.5 ? prev : nextOffset));
+    };
+
+    updateOffset();
+    window.addEventListener("resize", updateOffset);
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateOffset();
+    });
+    resizeObserver.observe(container);
+    const matrixAnchor = document.querySelector<HTMLElement>('[data-grid-anchor="matrix"]');
+    if (matrixAnchor) {
+      resizeObserver.observe(matrixAnchor);
+    }
+
+    return () => {
+      window.removeEventListener("resize", updateOffset);
+      resizeObserver.disconnect();
+    };
+  }, [cells.length, beatsPerBar]);
 
   /**
    * @brief オーディオコンテキストを取得し、必要に応じて再開する
@@ -666,10 +704,10 @@ function ChordGrid() {
 
   return (
     <div
+      ref={scrollContainerRef}
       className="flex-1 overflow-y-auto overflow-x-hidden pb-4"
-      style={{ scrollbarGutter: "stable both-edges" }}
     >
-      <div>
+      <div style={{ transform: `translateX(${alignmentOffset}px)` }}>
         {rows.map((rowStart) => (
           (() => {
             const rowBarNumber = beatsPerBar === 3
@@ -678,6 +716,7 @@ function ChordGrid() {
             return (
           <GridRow
             key={rowStart}
+            dataAnchor={rowStart === 0 ? "chord" : undefined}
             overlays={[
               {
                 key: `bar-${rowStart}`,
