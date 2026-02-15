@@ -18,7 +18,7 @@ import { SheetMusic } from "./SheetMusic";
  */
 export function PlayTab() {
   const { state, dispatch } = useApp();
-  const { progression, playback, options } = state;
+  const { progression, playback, options, currentKey } = state;
   const lang = options.language;
   const circleButtonStyle: React.CSSProperties = {
     backgroundImage: `url("${withBasePath("/images/backgrounds/circle.webp")}")`,
@@ -299,6 +299,7 @@ export function PlayTab() {
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-2">
         <SheetMusic
           progression={progression}
+          matrixKey={currentKey}
           currentBar={currentBar}
           startBar={startBar}
           barsPerRow={options.barsPerRow}

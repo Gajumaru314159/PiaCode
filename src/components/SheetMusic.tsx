@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Progression } from "@/types/music";
-import { chordDisplayName } from "@/lib/music";
+import { ALL_PITCH_CLASSES, chordDisplayName } from "@/lib/music";
 import { getPattern } from "@/lib/audio";
 import {
   buildBarNotationModel,
@@ -13,6 +13,7 @@ import {
 
 interface SheetMusicProps {
   progression: Progression;
+  matrixKey: number;
   currentBar: number;
   startBar: number;
   barsPerRow: 2 | 4;
@@ -22,6 +23,21 @@ interface SheetMusicProps {
   rightPatternId: string;
   maxBeats: number;
 }
+
+const VEX_KEY_SIGNATURE_MAP: Record<string, string> = {
+  C: "C",
+  "C#": "C#",
+  D: "D",
+  Eb: "Eb",
+  E: "E",
+  F: "F",
+  "F#": "F#",
+  G: "G",
+  Ab: "Ab",
+  A: "A",
+  Bb: "Bb",
+  B: "B",
+};
 
 /**
  * @brief 小節内のコード表示イベント（表示拍とラベル）を抽出する
@@ -49,10 +65,20 @@ function collectBarChordLabels(
 }
 
 /**
+ * @brief 小節先頭コードのrootをVexFlow用の調号名へ変換する
+ * @param root 小節先頭のコードroot
+ */
+function toVexKeySignature(root: Progression["cells"][number]["root"]): string | null {
+  if (!root) return null;
+  return VEX_KEY_SIGNATURE_MAP[root] || null;
+}
+
+/**
  * @brief VexFlowを使った楽譜表示コンポーネント
  */
 export function SheetMusic({
   progression,
+  matrixKey,
   currentBar,
   startBar,
   barsPerRow,
@@ -80,6 +106,7 @@ export function SheetMusic({
           Renderer,
           Stave,
           StaveNote,
+          Accidental,
           Voice,
           Formatter,
           StaveConnector,
@@ -105,6 +132,8 @@ export function SheetMusic({
 
         const leftPattern = getPattern(leftPatternId);
         const rightPattern = getPattern(rightPatternId);
+        const keyRoot = ALL_PITCH_CLASSES[(matrixKey + 12) % 12];
+        const keySignature = toVexKeySignature(keyRoot);
 
         const sidePadding = 20;
         const topPadding = 26;
@@ -131,12 +160,17 @@ export function SheetMusic({
           const x = sidePadding + col * barWidth;
           const y = topPadding + row * rowHeight;
           const isCurrentBar = absoluteBarIdx === currentBar;
+          const firstBeatIdx = absoluteBarIdx * beatsPerBar;
+          const chordsInBar = extractBarChords(cells, firstBeatIdx, beatsPerBar);
 
           // ト音記号の五線
           const trebleStave = new Stave(x, y, barWidth);
           if (col === 0) {
             trebleStave.addClef("treble");
             trebleStave.addTimeSignature(`${beatsPerBar}/4`);
+            if (keySignature) {
+              trebleStave.addKeySignature(keySignature);
+            }
           }
           trebleStave.setContext(context).draw();
 
@@ -145,6 +179,9 @@ export function SheetMusic({
           if (col === 0) {
             bassStave.addClef("bass");
             bassStave.addTimeSignature(`${beatsPerBar}/4`);
+            if (keySignature) {
+              bassStave.addKeySignature(keySignature);
+            }
           }
           bassStave.setContext(context).draw();
 
@@ -181,8 +218,6 @@ export function SheetMusic({
           }
 
           // コード名を上部に表示（小節内のコード変化に対応）
-          const firstBeatIdx = absoluteBarIdx * beatsPerBar;
-          const chordsInBar = extractBarChords(cells, firstBeatIdx, beatsPerBar);
           const chordLabels = collectBarChordLabels(chordsInBar, beatsPerBar);
           if (chordLabels.length > 0) {
             context.save();
@@ -243,6 +278,9 @@ export function SheetMusic({
             trebleVoice.addTickables(rightVoiceData.notes);
             const bassVoice = new Voice({ num_beats: beatsPerBar, beat_value: 4 }).setStrict(false);
             bassVoice.addTickables(leftVoiceData.notes);
+
+            // matrixKey の調号に対して必要な臨時記号を自動付与する
+            Accidental.applyAccidentals([trebleVoice, bassVoice], keySignature || "C");
 
             const sharedNoteStartX = Math.max(trebleStave.getNoteStartX(), bassStave.getNoteStartX());
             trebleStave.setNoteStartX(sharedNoteStartX);
@@ -310,7 +348,7 @@ export function SheetMusic({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [progression, currentBar, startBar, barsPerRow, rowCount, tempo, leftPatternId, rightPatternId, maxBeats]);
+  }, [progression, matrixKey, currentBar, startBar, barsPerRow, rowCount, tempo, leftPatternId, rightPatternId, maxBeats]);
 
   return <div ref={containerRef} className="w-full overflow-hidden" />;
 }
